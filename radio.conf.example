@@ -1,0 +1,36 @@
+# Settings for the radio console.
+#
+# Copy this file to radio.conf and fill in your own details:
+#
+#   cp radio.conf.example radio.conf
+#   chmod 600 radio.conf
+#
+# radio.conf holds your radio's password, so git is told to ignore it.
+# Write one KEY=value per line, with any comment on a line of its own.
+
+# The radio's address on your network.
+# On the radio: MENU » SET » Network » IP Address
+RADIO_IP=192.168.1.50
+
+# The login you chose on the radio.
+# On the radio: MENU » SET » Network » Network User1 ID / Network User1 Password
+RADIO_USER=your-user-id
+RADIO_PASS='your-password'
+
+# What talks to the radio on the page's behalf:
+#   wfweb    go through wfweb, which you download separately (see the README)
+#   direct   the console logs in to the radio itself; experimental
+BACKEND=wfweb
+
+# --- Optional. Remove the leading "# " from a setting to change it. ---
+
+# The port the page is served on.
+# PORT=9700
+
+# Which network address the page is served on. The default keeps it private to
+# this computer. Read "Keeping it safe" in the README before changing this.
+# BIND=127.0.0.1
+
+# The full path of the folder that holds the wfweb program, if it is not in
+# wfweb/wfweb-macos-arm64 next to this file.
+# WFWEB_DIR=/full/path/to/wfweb-folder

@@ -1,0 +1,29 @@
+{
+  "name": "ic9700-web-console",
+  "version": "0.1.0",
+  "description": "Beginner-friendly browser console for the Icom IC-9700: tune, watch the spectrum and waterfall, listen and talk, with every control explained in plain language.",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/prolonginc/ic9700-web-console.git"
+  },
+  "scripts": {
+    "start": "./start.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "amateur-radio",
+    "ham-radio",
+    "icom",
+    "ic-9700",
+    "ci-v",
+    "rig-control",
+    "remote-control",
+    "waterfall",
+    "websocket",
+    "web-audio"
+  ]
+}

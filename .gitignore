@@ -1,0 +1,12 @@
+# Your radio's address and password. Never commit this.
+radio.conf
+
+# wfweb is downloaded separately (see the README), not kept in this repository.
+/wfweb/
+/wfweb-*/
+*.zip
+
+# Local clutter
+.DS_Store
+node_modules/
+*.log

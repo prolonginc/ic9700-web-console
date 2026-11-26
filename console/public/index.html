@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio console</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="offline">
+
+<header class="topbar">
+  <div class="station" data-tip="link">
+    <span class="lamp" id="linkLamp"></span>
+    <span class="station-name" id="rigName">Radio</span>
+    <span class="station-status" id="linkText">Connecting…</span>
+    <button type="button" class="quiet-button" id="reconnectButton" hidden>Try again</button>
+  </div>
+  <div class="topbar-actions">
+    <span class="tips-hint" id="tipsHint">Point at anything to see what it does</span>
+    <label class="switch" data-tip="tipsToggle">
+      <input type="checkbox" id="tipsToggle" checked>
+      <span class="switch-track" aria-hidden="true"></span>
+      <span>Beginner tips</span>
+    </label>
+    <a class="quiet-link" id="fullPanelLink" href="https://localhost:8080" target="_blank" rel="noopener" data-tip="fullPanel" hidden>Full control panel</a>
+  </div>
+</header>
+
+<main class="desk">
+
+  <section class="glass" aria-label="Frequency and band display">
+    <div class="readout-row">
+      <div class="readout">
+        <button type="button" class="freq" id="freqButton" data-tip="freq" aria-label="Frequency. Click to type a new one.">
+          <span class="freq-main" id="freqMain">---.---</span><span class="freq-fine" id="freqFine">000</span><span class="freq-unit">MHz</span>
+        </button>
+        <form class="freq-form" id="freqForm" hidden>
+          <label for="freqInput">Go to frequency (MHz)</label>
+          <div class="freq-form-row">
+            <input id="freqInput" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="146.520">
+            <button type="submit" class="glass-button primary">Go</button>
+            <button type="button" class="glass-button" id="freqCancel">Cancel</button>
+          </div>
+          <p class="freq-error" id="freqError" role="alert"></p>
+        </form>
+      </div>
+
+      <div class="tuner" role="group" aria-label="Tune">
+        <button type="button" class="glass-button tune-arrow" id="tuneDown" data-tip="tuneDown" aria-label="Tune down one step">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.5 5 8l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <label class="step" data-tip="step">
+          <span class="step-label">Step</span>
+          <select id="stepSelect" aria-label="Tuning step">
+            <option value="10">10 Hz</option>
+            <option value="100">100 Hz</option>
+            <option value="1000">1 kHz</option>
+            <option value="5000">5 kHz</option>
+            <option value="12500">12.5 kHz</option>
+            <option value="25000">25 kHz</option>
+            <option value="100000">100 kHz</option>
+            <option value="1000000">1 MHz</option>
+          </select>
+        </label>
+        <button type="button" class="glass-button tune-arrow" id="tuneUp" data-tip="tuneUp" aria-label="Tune up one step">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5 11 8l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <p class="where" id="whereLine">Waiting for the radio…</p>
+
+    <div class="bandmap-block">
+      <div class="bandmap" id="bandmap" data-tip="bandmap">
+        <div class="bandmap-segments" id="bandmapSegments"></div>
+        <div class="bandmap-window" id="bandmapWindow" hidden></div>
+        <div class="bandmap-pin" id="bandmapPin" hidden></div>
+      </div>
+      <div class="bandmap-foot">
+        <span id="bandmapStart"></span>
+        <ul class="legend" id="bandmapLegend" aria-label="Band map colors"></ul>
+        <span id="bandmapEnd"></span>
+      </div>
+    </div>
+
+    <div class="scope" id="scope">
+      <canvas class="scope-spectrum" id="spectrum"></canvas>
+      <div class="scope-axis" id="axis"></div>
+      <canvas class="scope-waterfall" id="waterfall"></canvas>
+      <div class="scope-marker" id="marker" hidden></div>
+      <div class="scope-hover" id="hover" hidden><span id="hoverLabel"></span></div>
+      <span class="scope-tag scope-tag-spectrum" data-tip="spectrum" tabindex="0">Spectrum</span>
+      <span class="scope-tag scope-tag-waterfall" data-tip="waterfall" tabindex="0">Waterfall</span>
+      <div class="scope-zoom" role="group" aria-label="Zoom">
+        <button type="button" class="glass-button" id="zoomOut" data-tip="zoomOut" aria-label="Zoom out">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <span class="scope-zoom-label" id="zoomLabel">Zoom</span>
+        <button type="button" class="glass-button" id="zoomIn" data-tip="zoomIn" aria-label="Zoom in">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="scope-empty" id="scopeEmpty">The band display appears here once the radio is connected.</p>
+    </div>
+  </section>
+
+  <aside class="side">
+
+    <section class="card" aria-labelledby="listenHeading">
+      <h2 id="listenHeading">Listen</h2>
+      <button type="button" class="big-button" id="listenButton" data-tip="listen">Start listening</button>
+
+      <div class="field" data-tip="signal">
+        <div class="field-head">
+          <span class="field-name">Signal</span>
+          <span class="field-value" id="signalText">No reading</span>
+        </div>
+        <div class="meter" role="img" aria-label="Signal strength"><div class="meter-fill" id="signalFill"></div><div class="meter-s9"></div></div>
+      </div>
+
+      <label class="field" data-tip="volume">
+        <div class="field-head"><span class="field-name">Volume</span><span class="field-value" id="volumeText">80%</span></div>
+        <input type="range" id="volume" min="0" max="100" value="80">
+      </label>
+
+      <label class="field" data-tip="squelch">
+        <div class="field-head"><span class="field-name">Squelch</span><span class="field-value" id="squelchText">–</span></div>
+        <input type="range" id="squelch" min="0" max="255" value="0">
+      </label>
+
+      <div class="toggle-row">
+        <button type="button" class="chip-toggle" id="preampButton" data-tip="preamp" aria-pressed="false">Preamp</button>
+        <button type="button" class="chip-toggle" id="nrButton" data-tip="nr" aria-pressed="false">Noise reduction</button>
+      </div>
+    </section>
+
+    <section class="card talk" aria-labelledby="talkHeading">
+      <h2 id="talkHeading">Talk</h2>
+
+      <div id="talkSetup">
+        <p class="card-note">To transmit, this page needs your computer’s microphone. Nothing goes on the air until you hold the talk button.</p>
+        <button type="button" class="big-button" id="micButton" data-tip="micSetup">Set up microphone</button>
+      </div>
+
+      <div id="talkReady" hidden>
+        <button type="button" class="ptt" id="pttButton" data-tip="ptt">
+          <span class="ptt-main" id="pttMain">Hold to talk</span>
+          <span class="ptt-sub" id="pttSub">or hold the space bar</span>
+        </button>
+        <div class="field" data-tip="micLevel">
+          <div class="field-head"><span class="field-name">Microphone</span><span class="field-value" id="micName"></span></div>
+          <div class="meter meter-thin" role="img" aria-label="Microphone level"><div class="meter-fill mic" id="micFill"></div></div>
+        </div>
+        <div class="tx-meters" id="txMeters" hidden>
+          <div class="tx-meter" data-tip="txPower"><span class="tx-meter-name">Power</span><span class="tx-meter-value" id="txPowerText">0 W</span></div>
+          <div class="tx-meter" data-tip="swr"><span class="tx-meter-name">Antenna match</span><span class="tx-meter-value" id="swrText">–</span></div>
+        </div>
+      </div>
+
+      <label class="field" data-tip="power">
+        <div class="field-head"><span class="field-name">Transmit power</span><span class="field-value" id="powerText">–</span></div>
+        <input type="range" id="power" min="0" max="255" value="0">
+      </label>
+    </section>
+
+  </aside>
+
+  <section class="controls" aria-label="Radio settings">
+
+    <div class="row">
+      <h2 id="bandHeading">Band</h2>
+      <div class="row-body">
+        <div class="segmented" id="bandButtons" role="group" aria-labelledby="bandHeading"></div>
+        <h2 class="row-heading-inline" id="modeHeading">Mode</h2>
+        <div class="segmented" id="modeButtons" role="group" aria-labelledby="modeHeading"></div>
+        <label class="inline-select" data-tip="moreModes">
+          <span class="visually-hidden">More modes</span>
+          <select id="moreModes"><option value="">More…</option></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="row">
+      <h2 class="has-tip" data-tip="favorites" tabindex="0">Favorites</h2>
+      <div class="row-body">
+        <ul class="favorites" id="favorites"></ul>
+        <button type="button" class="favorite-add" id="saveFavorite" data-tip="saveFavorite">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Save frequency
+        </button>
+        <form class="favorite-form" id="favoriteForm" hidden>
+          <label for="favoriteName">Name for this frequency</label>
+          <div class="favorite-form-row">
+            <input id="favoriteName" type="text" maxlength="28" autocomplete="off" placeholder="Local repeater">
+            <button type="submit" class="small-button primary">Save</button>
+            <button type="button" class="small-button" id="favoriteCancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="row row-repeater">
+      <h2 id="repeaterHeading">Repeater</h2>
+      <div class="row-body-stack">
+        <div class="repeater-grid">
+          <div class="labelled" data-tip="shift">
+            <span class="labelled-name">Shift</span>
+            <div class="segmented" id="shiftButtons" role="group" aria-label="Repeater shift">
+              <button type="button" data-shift="OFF">Off</button>
+              <button type="button" data-shift="DUP-" aria-label="Minus">−</button>
+              <button type="button" data-shift="DUP+" aria-label="Plus">+</button>
+            </div>
+          </div>
+          <label class="labelled" data-tip="offset">
+            <span class="labelled-name">Distance</span>
+            <select id="offsetSelect"></select>
+          </label>
+          <div class="labelled" data-tip="tone">
+            <span class="labelled-name">Access tone</span>
+            <div class="segmented" id="toneButtons" role="group" aria-label="Access tone">
+              <button type="button" data-tone="OFF">Off</button>
+              <button type="button" data-tone="TONE">Send</button>
+              <button type="button" data-tone="TSQL">Send and require</button>
+            </div>
+          </div>
+          <label class="labelled" data-tip="toneFreq">
+            <span class="labelled-name">Tone</span>
+            <select id="toneSelect"></select>
+          </label>
+        </div>
+        <div class="repeater-foot">
+          <p class="tx-line" id="txLine" data-tip="txLine"></p>
+          <button type="button" class="link-button" id="usualButton" data-tip="usual" hidden></button>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<div class="tooltip" id="tooltip" role="tooltip" hidden>
+  <p class="tooltip-title"></p>
+  <p class="tooltip-body"></p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
