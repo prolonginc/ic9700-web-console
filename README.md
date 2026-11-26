@@ -7,9 +7,9 @@
 ![Status: early](https://img.shields.io/badge/status-early-orange)
 
 Run an Icom IC-9700 from a browser tab. Tune, watch the band on a live spectrum
-and waterfall, listen, talk, scan, follow satellites and keep a logbook, with
-every control explained in plain language for people who are new to amateur
-radio.
+and waterfall, listen, talk, scan, follow satellites, read Morse code, keep a
+logbook and look up the jargon, with every control explained in plain language
+for people who are new to amateur radio.
 
 It is one small Node.js program with no dependencies and no build step.
 
@@ -30,6 +30,8 @@ It is one small Node.js program with no dependencies and no build step.
 - [Repeaters](#repeaters)
 - [Satellites](#satellites)
 - [Logbook](#logbook)
+- [Morse](#morse)
+- [Cheat sheets](#cheat-sheets)
 - [Phones and tablets](#phones-and-tablets)
 - [Two ways to reach the radio](#two-ways-to-reach-the-radio)
 - [Keeping it safe](#keeping-it-safe)
@@ -65,6 +67,11 @@ It is one small Node.js program with no dependencies and no build step.
 - **Satellites and the space station.** See when they pass over you, and let
   the console keep the radio on frequency as one goes by.
 - **A logbook.** Note who you talked to, and export it for logging sites.
+- **A Morse reader.** It listens for Morse code and writes out the letters,
+  including the call sign a repeater sends every ten minutes.
+- **Cheat sheets.** Q codes such as QSY, on-air shorthand and repeater slang,
+  the phonetic alphabet, signal reports, and which bands each US license
+  class may use.
 - **On your phone.** Use it from a phone or tablet on your home network, behind
   a password.
 - **Beginner tips on everything.** Point at any control for a short
@@ -87,6 +94,8 @@ This is an early project. Read this table before you rely on it.
 | Second receiver | Switching on, tuning, swapping and its separate audio checked on a real radio, by measurement rather than by ear |
 | Satellites | Predictions checked against published reference values and a live ISS tracker. Tracking sets a real radio up and puts it back. No contact has been made through a satellite yet |
 | Logbook | Works. The exported file has not yet been loaded into a logging site |
+| Cheat sheets | The license chart was checked line by line against the FCC rules in force in November 2026. The Line A check is exact where the line follows a parallel or meridian, and within about 20 km elsewhere, where it says "near" |
+| Morse reader | Reads generated Morse from 6 to 38 words a minute at any pitch, through hiss more than twice as loud as the tone, and stays silent on receiver hiss and speech recorded for the purpose. Not yet tried on Morse received off the air |
 | Phones and tablets | Tested over HTTPS in a desktop browser at phone size. Not yet on a real phone |
 
 Developed on macOS 15 (Apple Silicon) with Chrome and Node.js 25. Nothing else
@@ -151,6 +160,8 @@ console keeps your favorites, repeater list and logbook.
 | Save where you are | "Save frequency" |
 | Scan | Under **Scan**, pick favorites, repeaters, or this part of the band. "Stop here" stays; "Skip" moves on |
 | Listen on a second band | Switch **Second receiver** on and click its frequency to change it |
+| Read Morse code | The **Morse** tab, then "Read Morse" |
+| Look up a code or a word | The **Cheat sheets** tab. Type it in the search box |
 | Close a box or a tip | Esc |
 
 **Scanning** stops wherever the radio's squelch opens, so set the squelch
@@ -223,6 +234,73 @@ and a contact made while tracking is marked with the satellite's name.
 **Export** downloads the logbook as an ADIF file, the format that Logbook of
 The World, QRZ, eQSL and logging programs import. Put your own call sign in
 **My call sign** first, so that it is written into the file.
+
+## Morse
+
+![The Morse tab reading a test signal](docs/screenshots/morse.png)
+
+Morse code, which hams call CW, is a single tone keyed on and off. The
+**Morse** tab reads it from the radio's sound and writes out the letters. Press
+**Read Morse**; the speaker does not have to be on.
+
+- **For Morse signals,** switch to CW and tune to a thin line that flickers on
+  the waterfall. They are mostly at the bottom of each band, in the "weak
+  signal" part of the band map.
+- **For repeaters,** stay in FM. A repeater sends its call sign in Morse every
+  ten minutes or so, and this reads that too.
+
+It finds the tone and the sending speed by itself, and says what it found. The
+light beside the text follows the keying, so you can see it is on the right
+signal. Each transmission starts a new line.
+
+It is built to print nothing rather than nonsense: voices, noise and steady
+tones are ignored, and so is Morse too faint or too rough to be sure of. It
+needs to hear both dots and dashes before it knows the speed, so the first
+letters appear a moment late. After you change mode or band it can take ten
+seconds to get used to the new background noise. The picture shows a test
+signal, not one received off the air.
+
+## Cheat sheets
+
+![The Cheat sheets tab showing the license chart](docs/screenshots/cheatsheets.png)
+
+The **Cheat sheets** tab holds what a newcomer otherwise has to look up. Type a
+code you heard into the search box, such as `QSY` or `73`, or a word such as
+"frequency", and it finds it in any sheet.
+
+Enter **My call sign** and **My license** at the top of the tab once. The
+examples in every sheet then use your call sign, so you can read them out as
+they are, and your column in the license chart is picked out.
+
+- **My bands.** Which bands each United States license class may use, with the
+  bands this radio has at the top.
+- **Q codes.** QSY, QTH, QRZ and the rest, each with what it means and how it
+  is used.
+- **Shorthand.** The abbreviations of Morse and logs: CQ, DE, 73, 599.
+- **On the air.** What to say to start and end a contact, and the words heard
+  on repeaters.
+- **Phonetics.** The phonetic alphabet, and a box that spells out any call
+  sign.
+- **Signal reports.** What "five nine" means.
+
+![The On the air sheet, with the call sign filled into the examples](docs/screenshots/cheatsheets-onair.png)
+
+The license setting only changes what the chart shows. It does not stop the
+radio transmitting anywhere: staying inside your privileges is up to you. On
+this radio's three bands that is simple, because Technician, General and
+Amateur Extra licenses all have the same privileges there.
+
+The console does warn, in the line that says where you will transmit, about two
+rules that apply to every class:
+
+- The bottom 100 kHz of 2 meters is for Morse only.
+- North of "Line A", a line that runs a little south of the Canadian border,
+  nobody may transmit between 420 and 430 MHz. If you have saved a location in
+  the Satellites tab, the console works out which side you are on. Close to
+  the line it says so and leaves the answer to you.
+
+These are warnings, not locks. The chart is a study aid checked against the
+FCC's rules in November 2026; the rules themselves are what count.
 
 ## Phones and tablets
 
@@ -338,6 +416,8 @@ never sent anywhere.
 - **United States band plan.** The band map, the "where you are" line and the
   usual repeater settings follow the ARRL plan. Elsewhere they will not match
   your local rules.
+- **Morse is read, not sent.** There is no keyer, and the reader follows one
+  signal at a time: the strongest tone between 300 and 1500 Hz.
 - **FM satellites only.** Satellites that carry sideband and Morse (the
   "linear" ones, such as RS-44) are not listed. The satellite list and its
   frequencies are as of November 2026 and will go out of date.
@@ -453,6 +533,8 @@ console/
     js/sgp4.js            where a satellite is
     js/passes.js          when it is overhead
     js/satdata.js         the satellite list and its frequencies
+    js/morse.js           the Morse reader
+    js/reference.js       the cheat sheets' contents, and the license chart
 test/                     run with: npm test
 docs/screenshots/         the pictures on this page
 ```
@@ -475,6 +557,8 @@ page. `npm test` runs the checks that need no radio.
   #3" (2006).
 - Satellite frequencies come from [AMSAT](https://www.amsat.org) and
   [ARISS](https://www.ariss.org).
+- The license chart follows the FCC's amateur rules (47 CFR Part 97) as laid
+  out on the ARRL's [band chart](https://www.arrl.org/graphical-frequency-allocations).
 - The repeater importer reads the CSV formats of
   [CHIRP](https://chirpmyradio.com) and
   [RepeaterBook](https://www.repeaterbook.com).

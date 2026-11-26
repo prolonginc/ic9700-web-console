@@ -1774,6 +1774,364 @@ a.small-button {
   display: none;
 }
 
+/* Morse */
+.morse-out {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-height: 92px;
+  max-height: 250px;
+  overflow: auto;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+/* Lights while the tone is on, so you can see it follow what you hear. */
+.morse-lamp {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 9px;
+  border-radius: 50%;
+  background: #c3ccc7;
+}
+
+.morse-lamp.on {
+  background: var(--amber);
+  box-shadow: 0 0 0 4px rgba(255, 183, 3, 0.25);
+}
+
+.morse-text {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.morse-text:empty::before {
+  content: "Nothing read yet.";
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.morse-chart summary {
+  width: fit-content;
+  color: var(--cobalt-deep);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.morse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 3px 16px;
+  margin-top: 10px;
+}
+
+.morse-grid span {
+  white-space: nowrap;
+}
+
+.morse-grid b {
+  display: inline-block;
+  width: 1.5em;
+  font-family: var(--font-num);
+  font-size: 17px;
+}
+
+.morse-grid i {
+  font-style: normal;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+/* Cheat sheets */
+.you-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.you-row .inline-field {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.you-row select {
+  font-weight: 600;
+}
+
+#sheetCall {
+  width: 124px;
+  text-transform: uppercase;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 17px;
+}
+
+#sheetCall::placeholder {
+  text-transform: none;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.you-note {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.segmented.wrap {
+  flex-wrap: wrap;
+}
+
+#sheetSearch {
+  width: 230px;
+}
+
+.sheet-body {
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.sheet-lead {
+  max-width: 78ch;
+  margin-bottom: 12px;
+}
+
+.sheet-lead + .sheet-note {
+  margin-bottom: 12px;
+}
+
+.sheet-note {
+  max-width: 78ch;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.sheet-note strong {
+  color: var(--ink);
+}
+
+.sheet-note .warn-text {
+  color: #a3261c;
+}
+
+.sheet-heading,
+.scale h3 {
+  margin: 12px 0 6px;
+  font-family: var(--font-num);
+  font-size: 17px;
+}
+
+/* A code or word on the left, what it means on the right. */
+.terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 0 30px;
+  margin: 0;
+}
+
+.term {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.term dt {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.term dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.term dd strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.table-wrap.tall {
+  max-height: 340px;
+  margin-bottom: 10px;
+}
+
+.privileges tbody th {
+  position: static;
+  padding: 7px 12px;
+  border-top: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-num);
+  font-size: 16px;
+  vertical-align: top;
+}
+
+.privileges tbody tr.group th {
+  padding: 9px 12px 6px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.privileges thead th:nth-child(n + 4) {
+  text-align: center;
+}
+
+.privileges .may {
+  text-align: center;
+}
+
+.privileges .yes {
+  color: #0c6a48;
+  font-weight: 600;
+}
+
+.privileges .no {
+  color: #a9b4b0;
+}
+
+.privileges .part {
+  color: #8a5a00;
+  font-size: 13px;
+}
+
+/* The column for the license you hold. */
+.privileges .mine {
+  background: var(--cobalt-wash);
+}
+
+.privileges thead th.mine {
+  color: var(--cobalt-deep);
+  box-shadow: inset 0 3px 0 var(--cobalt);
+}
+
+.scales {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 6px 30px;
+  margin-bottom: 12px;
+}
+
+.scale h3 {
+  margin-top: 0;
+}
+
+.scale-table {
+  border-collapse: collapse;
+}
+
+.scale-table th {
+  padding: 3px 14px 3px 0;
+  font-family: var(--font-num);
+  font-size: 17px;
+  text-align: left;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.scale-table td {
+  padding: 3px 0;
+  color: var(--ink-soft);
+}
+
+.scale .sheet-note {
+  margin-top: 6px;
+}
+
+.spell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-bottom: 12px;
+}
+
+#spellInput {
+  width: 150px;
+  text-transform: uppercase;
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+.spell-out {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.spell-out.soft {
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.phonetic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 4px 16px;
+  margin-bottom: 12px;
+}
+
+.phonetic-grid b {
+  display: inline-block;
+  width: 1.5em;
+  font-family: var(--font-num);
+  font-size: 17px;
+}
+
+/* What to say, word for word. */
+.scripts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.script {
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.script h3 {
+  margin: 0 0 4px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.script-line {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
 /* A dialog that explains something, e.g. how to open the page on a phone. */
 .sheet {
   width: min(540px, calc(100vw - 32px));
@@ -2044,6 +2402,22 @@ a.small-button {
 
   .table-wrap {
     max-height: 60vh;
+  }
+
+  .sheet-body {
+    max-height: none;
+  }
+
+  #sheetSearch {
+    width: 100%;
+  }
+
+  .terms {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .term {
+    grid-template-columns: 78px minmax(0, 1fr);
   }
 
   .list th,

@@ -57,6 +57,40 @@ export const TIPS = {
     body: 'A record of who you talked to, when, and on what frequency. In most countries keeping one is a tradition rather than a rule, and it is how contacts get confirmed for awards.',
   },
 
+  tabMorse: {
+    title: 'Morse',
+    body: 'Reads Morse code off the air and writes it out. Hams call Morse “CW”.',
+  },
+  morseToggle: {
+    title: 'Read Morse',
+    body: 'Listens to the radio’s sound for a tone being keyed on and off, works out how fast it is being sent, and writes the letters. It works in any mode: in CW for Morse signals, in FM for the call sign a repeater sends.',
+  },
+  morseLamp: {
+    title: 'Keying light',
+    body: 'Lit while the tone is on. If it flickers in step with the Morse you hear, the signal is being followed.',
+  },
+
+  tabSheets: {
+    title: 'Cheat sheets',
+    body: 'The things a newcomer has to look up: Q codes such as QSY, on-air shorthand, the phonetic alphabet, signal reports, and which bands your license covers.',
+  },
+  sheetSearch: {
+    title: 'Look it up',
+    body: 'Type a code you heard, such as QRZ or 73, or a word such as “frequency”, to find it in any of the sheets.',
+  },
+  sheetCall: {
+    title: 'Your call sign',
+    body: 'The call sign on your license. With it filled in, the examples in these sheets use it, so you can read them out as they are. It is the same one the Logbook uses.',
+  },
+  license: {
+    title: 'Your license',
+    body: 'The class of your United States amateur license. It picks out your column in the chart. It does not change what the radio will do: staying inside your privileges is up to you.',
+  },
+  spell: {
+    title: 'Spell it out',
+    body: 'Turns a call sign or a word into the phonetic words to say on the air. It starts with your own call sign, if you have entered one.',
+  },
+
   // --- Scan ---
   scan: {
     title: 'Scan',

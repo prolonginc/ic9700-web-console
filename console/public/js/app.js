@@ -14,6 +14,9 @@ import { setupScan } from './scan.js';
 import { setupSecond } from './second.js';
 import { setupSatellites } from './satellites.js';
 import { setupLogbook } from './logbook.js';
+import { setupMorse } from './morseui.js';
+import { setupCheatsheets } from './cheatsheets.js';
+import { modeLimitAt, sideOfLineA } from './reference.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -535,6 +538,14 @@ $('usualButton').addEventListener('click', () => {
   radio.merge({ duplexOffset: seg.usual.offset, duplex: seg.usual.duplex });
 });
 
+// True if `hz` is in the part of 70 centimeters that is closed to stations
+// near the Canadian border, and the saved location is such a place.
+function closedByLineA(hz) {
+  if (hz < 420e6 || hz >= 430e6) return false;
+  const here = settings.value && settings.value.location;
+  return !!here && Number.isFinite(here.lat) && sideOfLineA(here.lat, here.lon) === 'north';
+}
+
 // True if the radio is not set the way this repeater needs.
 function needsSettings(r) {
   const offset = state.duplexOffset || 0;
@@ -586,6 +597,13 @@ function renderRepeater() {
     const strong = document.createElement('strong');
     strong.textContent = `${formatMHz(f, 4)} MHz`;
     line.replaceChildren('You transmit on ', strong, ', the satellite’s uplink, while listening on another band.');
+  } else if (modeLimitAt(transmitFrequency(), state.mode)) {
+    // A stretch of band where the rules allow only some modes.
+    line.classList.add('warn');
+    line.textContent = `${modeLimitAt(transmitFrequency(), state.mode).text} Change mode or move before you transmit.`;
+  } else if (closedByLineA(transmitFrequency())) {
+    line.classList.add('warn');
+    line.textContent = 'From the location you saved, north of “Line A”, US rules do not allow transmitting between 420 and 430 MHz. Listening is fine.';
   } else if (shift === 'OFF') {
     line.textContent = 'You transmit on the same frequency you listen to.';
   } else {
@@ -792,8 +810,8 @@ function renderListen() {
 
 $('listenButton').addEventListener('click', async () => {
   if (speaker.running) {
-    radio.send('enableAudio', { value: false });
     speaker.stop();
+    syncAudio();
     renderListen();
     return;
   }
@@ -804,7 +822,7 @@ $('listenButton').addEventListener('click', async () => {
   try {
     await speaker.start((radio.info && radio.info.audioSampleRate) || 48000);
     speaker.setVolume($('volume').value / 100);
-    radio.send('enableAudio', { value: true });
+    syncAudio();
   } catch (err) {
     toast(`Couldn’t start sound: ${err.message}`);
   }
@@ -1101,7 +1119,31 @@ const logbook = setupLogbook({
   tracking: () => satellites.tracking(),
 });
 
+// The radio's sound is asked for when something here wants it: the speaker,
+// or the Morse reader, which can work with the speaker off.
+function syncAudio() {
+  radio.send('enableAudio', { value: speaker.running || morse.running });
+}
+
+const morse = setupMorse({ $, radio, toast, syncAudio });
+// The call sign is shown in the Logbook tab too, and where you are decides
+// what the transmit line warns about.
+const sheets = setupCheatsheets({
+  $,
+  settings,
+  toast,
+  onProfile: () => {
+    logbook.showMyCall();
+    renderRepeater();
+  },
+});
+// The sheets quote your call sign, which may have been entered since.
+tabs.onShow((id) => {
+  if (id === 'tabSheets') sheets.render();
+});
+
 settings.load().then(() => {
+  sheets.render();
   logbook.showMyCall();
   repeaters.render();
   satellites.locationChanged();
@@ -1235,7 +1277,7 @@ radio.addEventListener('info', () => {
   buildToneOptions();
   renderEverything();
   // After a reconnect, turn sound and microphone back on at the server.
-  if (speaker.running) radio.send('enableAudio', { value: true });
+  syncAudio();
   if (mic.ready) radio.send('enableMic', { value: true, device: mic.label });
 });
 
@@ -1258,7 +1300,11 @@ setInterval(() => {
 }, 2000);
 // Only the console's own direct connection sends both receivers; from wfweb
 // that header byte means something else.
-radio.addEventListener('audio', (e) => speaker.play(e.detail, !!(radio.info && radio.info.direct)));
+radio.addEventListener('audio', (e) => {
+  const direct = !!(radio.info && radio.info.direct);
+  speaker.play(e.detail, direct);
+  morse.feed(e.detail, direct);
+});
 radio.addEventListener('notice', (e) => toast(e.detail.text));
 
 renderLink();
@@ -1267,4 +1313,4 @@ renderTalk();
 radio.connect();
 
 // Handy when poking at the page from the browser's developer console.
-window.radioConsole = { radio, scope, speaker, mic, repeaters, scan, second, satellites, logbook, tips, tabs };
+window.radioConsole = { radio, scope, speaker, mic, repeaters, scan, second, satellites, logbook, morse, sheets, tips, tabs };

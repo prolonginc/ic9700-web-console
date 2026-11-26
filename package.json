@@ -1,7 +1,7 @@
 {
   "name": "ic9700-web-console",
   "version": "0.1.0",
-  "description": "Beginner-friendly browser console for the Icom IC-9700: tune, watch the spectrum and waterfall, listen and talk, scan, follow satellites and keep a logbook, with every control explained in plain language.",
+  "description": "Beginner-friendly browser console for the Icom IC-9700: tune, watch the spectrum and waterfall, listen and talk, scan, follow satellites, read Morse code, look up the jargon and keep a logbook, with every control explained in plain language.",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -29,6 +29,10 @@
     "satellite-tracking",
     "sgp4",
     "adif",
-    "repeaters"
+    "repeaters",
+    "morse-code",
+    "cw-decoder",
+    "q-codes",
+    "cheat-sheet"
   ]
 }

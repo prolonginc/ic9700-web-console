@@ -208,6 +208,8 @@
       <button type="button" role="tab" id="tabRepeaters" aria-controls="panelRepeaters" aria-selected="false" tabindex="-1" data-tip="tabRepeaters">Repeaters</button>
       <button type="button" role="tab" id="tabSatellites" aria-controls="panelSatellites" aria-selected="false" tabindex="-1" data-tip="tabSatellites">Satellites</button>
       <button type="button" role="tab" id="tabLogbook" aria-controls="panelLogbook" aria-selected="false" tabindex="-1" data-tip="tabLogbook">Logbook</button>
+      <button type="button" role="tab" id="tabMorse" aria-controls="panelMorse" aria-selected="false" tabindex="-1" data-tip="tabMorse">Morse</button>
+      <button type="button" role="tab" id="tabSheets" aria-controls="panelSheets" aria-selected="false" tabindex="-1" data-tip="tabSheets">Cheat sheets</button>
     </div>
 
     <div class="tabpanel" id="panelRadio" role="tabpanel" aria-labelledby="tabRadio">
@@ -410,6 +412,45 @@
         </table>
       </div>
       <p class="panel-empty" id="logEmpty"></p>
+    </div>
+
+    <div class="tabpanel" id="panelMorse" role="tabpanel" aria-labelledby="tabMorse" hidden>
+      <div class="panel-head">
+        <p class="panel-summary" id="morseStatus" role="status"></p>
+        <div class="panel-actions">
+          <button type="button" class="small-button" id="morseCopy" hidden>Copy</button>
+          <button type="button" class="small-button" id="morseClear" hidden>Clear</button>
+          <button type="button" class="small-button primary" id="morseToggle" data-tip="morseToggle">Read Morse</button>
+        </div>
+      </div>
+      <div class="morse-out" id="morseOut" hidden>
+        <span class="morse-lamp" id="morseLamp" data-tip="morseLamp"></span>
+        <p class="morse-text" id="morseText" aria-live="polite"></p>
+      </div>
+      <p class="panel-empty" id="morseEmpty">Morse code is a single tone keyed on and off, and hams still use it because it gets through when voice cannot. This reads it for you and writes out the letters. To find some, switch to CW and tune to a thin line that flickers on the waterfall. Or stay in FM on a repeater: every ten minutes or so it sends its call sign in Morse.</p>
+      <details class="morse-chart">
+        <summary>The Morse alphabet</summary>
+        <div class="morse-grid" id="morseChart"></div>
+      </details>
+    </div>
+
+    <div class="tabpanel" id="panelSheets" role="tabpanel" aria-labelledby="tabSheets" hidden>
+      <div class="you-row">
+        <label class="inline-field" data-tip="sheetCall">My call sign
+          <input type="text" id="sheetCall" maxlength="12" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="none yet">
+        </label>
+        <label class="inline-field" data-tip="license">My license
+          <select id="licenseSelect"></select>
+        </label>
+        <span class="you-note" id="sheetYouNote"></span>
+      </div>
+      <div class="panel-head">
+        <div class="segmented wrap" id="sheetButtons" role="group" aria-label="Which cheat sheet"></div>
+        <div class="panel-actions">
+          <input type="search" id="sheetSearch" placeholder="Look up a code or a word" aria-label="Look up a code or a word" data-tip="sheetSearch">
+        </div>
+      </div>
+      <div class="sheet-body" id="sheetBody"></div>
     </div>
 
   </section>
