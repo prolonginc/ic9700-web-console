@@ -1,6 +1,10 @@
 # Your radio's address and password. Never commit this.
 radio.conf
 
+# What the console remembers for you: favorites, repeater list, logbook,
+# location, and the certificate for phone access. Yours, not the project's.
+/data/
+
 # wfweb is downloaded separately (see the README), not kept in this repository.
 /wfweb/
 /wfweb-*/

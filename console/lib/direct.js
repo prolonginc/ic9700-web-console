@@ -9,6 +9,10 @@
 //                  binary 0x03 microphone audio
 //
 // (The formats are spelled out at the top of public/js/radio.js.)
+//
+// It also answers a few commands wfweb does not have, for the second
+// receiver, scanning and satellites. `features` in rigInfo tells the page
+// they are there.
 
 const { IcomSession, LoginError, SAMPLE_RATE } = require('./icom/session');
 const { Rig } = require('./icom/rig');
@@ -17,7 +21,8 @@ const { profileFor } = require('./icom/models');
 const RETRY_MS = 4000;
 const SWEEP_INTERVAL_MS = 110; // the radio sends sweeps faster than a waterfall wants them
 const TALK_LIMIT_MS = 3 * 60 * 1000 + 5000; // backstop to the page's own three-minute limit
-const METER_KEYS = new Set(['sMeter', 'powerMeter', 'swrMeter', 'transmitting']);
+const MIC_SILENCE_MS = 2000; // keyed but no microphone audio arriving for this long: unkey
+const METER_KEYS = new Set(['sMeter', 'subSMeter', 'squelchOpen', 'subSquelchOpen', 'powerMeter', 'swrMeter', 'transmitting']);
 
 class DirectBackend {
   constructor({ host, user, pass, log = console.log }) {
@@ -33,6 +38,8 @@ class DirectBackend {
     this.audioSeq = 0;
     this.talker = null; // the page currently holding the transmitter
     this.talkTimer = null;
+    this.talkWatch = null;
+    this.lastMicAt = 0;
     this.stopping = false;
   }
 
@@ -45,7 +52,8 @@ class DirectBackend {
   async connect() {
     if (this.stopping || this.session) return;
     clearTimeout(this.retryTimer);
-    const session = (this.session = new IcomSession(this.config));
+    // Stereo: the main receiver arrives on the left, the second on the right.
+    const session = (this.session = new IcomSession({ ...this.config, stereo: true }));
     try {
       await session.connect();
     } catch (err) {
@@ -86,6 +94,7 @@ class DirectBackend {
     this.session = null;
     this.talker = null;
     clearTimeout(this.talkTimer);
+    clearInterval(this.talkWatch);
     this.problem = why;
     this.broadcast(this.rigInfo());
     if (!this.stopping) this.retryLater();
@@ -114,6 +123,7 @@ class DirectBackend {
       audioAvailable: true,
       audioSampleRate: SAMPLE_RATE,
       txAudioAvailable: true,
+      features: { secondReceiver: true, scan: true, satellites: true },
     };
   }
 
@@ -148,26 +158,41 @@ class DirectBackend {
     for (const c of this.clients) c.ws.sendBinary(frame, true);
   }
 
+  // pcm: 16-bit samples, left (main receiver) and right (second receiver)
+  // alternating. Each page gets the receiver it asked for, or both.
   onAudio(pcm) {
-    let frame = null;
+    const frames = {};
+    const frameFor = (mix) => {
+      if (frames[mix]) return frames[mix];
+      let body = pcm;
+      if (mix !== 'both') {
+        const samples = pcm.length >> 2;
+        const at = mix === 'sub' ? 2 : 0;
+        body = Buffer.allocUnsafe(samples * 2);
+        for (let i = 0; i < samples; i++) body.writeInt16LE(pcm.readInt16LE(i * 4 + at), i * 2);
+      }
+      const frame = Buffer.alloc(6 + body.length);
+      frame[0] = 0x02;
+      frame[1] = mix === 'both' ? 2 : 1; // channels
+      frame.writeUInt16LE(this.audioSeq, 2);
+      frame.writeUInt16LE(SAMPLE_RATE / 1000, 4);
+      body.copy(frame, 6);
+      frames[mix] = frame;
+      return frame;
+    };
+    let any = false;
     for (const c of this.clients) {
       if (!c.listening) continue;
-      if (!frame) {
-        frame = Buffer.alloc(6 + pcm.length);
-        frame[0] = 0x02;
-        frame.writeUInt16LE(this.audioSeq, 2);
-        frame.writeUInt16LE(SAMPLE_RATE / 1000, 4);
-        pcm.copy(frame, 6);
-        this.audioSeq = (this.audioSeq + 1) & 0xffff;
-      }
-      c.ws.sendBinary(frame, true);
+      any = true;
+      c.ws.sendBinary(frameFor(c.mix), true);
     }
+    if (any) this.audioSeq = (this.audioSeq + 1) & 0xffff;
   }
 
   // -------------------------------------------------------- Page → radio
 
   addClient(ws) {
-    const client = { ws, listening: false };
+    const client = { ws, listening: false, mix: 'main' };
     this.clients.add(client);
     ws.sendJson(this.rigInfo());
     if (this.rig) ws.sendJson({ type: 'status', ...this.rig.state });
@@ -185,6 +210,7 @@ class DirectBackend {
     ws.on('binary', (data) => {
       // Microphone audio counts only from the page that is holding the key.
       if (data.length > 6 && data[0] === 0x03 && this.talker === client && this.session) {
+        this.lastMicAt = Date.now();
         this.session.sendAudio(data.subarray(6));
       }
     });
@@ -197,6 +223,7 @@ class DirectBackend {
   // Who may transmit: one page at a time. Passing null unkeys the radio.
   setTalker(client) {
     clearTimeout(this.talkTimer);
+    clearInterval(this.talkWatch);
     const rig = this.rig;
     if (!client) {
       if (!this.talker) return Promise.resolve();
@@ -209,6 +236,15 @@ class DirectBackend {
       this.log('Radio: transmit time limit reached, unkeying');
       this.setTalker(null);
     }, TALK_LIMIT_MS);
+    // A page that has gone quiet (a phone that lost its Wi-Fi, say) may not
+    // be able to tell us to stop, so its silence is taken as letting go.
+    this.lastMicAt = Date.now();
+    this.talkWatch = setInterval(() => {
+      if (Date.now() - this.lastMicAt < MIC_SILENCE_MS) return;
+      this.log('Radio: no microphone audio arriving, unkeying');
+      client.ws.sendJson({ type: 'error', message: 'Stopped transmitting: your microphone audio stopped arriving.' });
+      this.setTalker(null);
+    }, 500);
     return rig.setTransmit(true);
   }
 
@@ -225,10 +261,15 @@ class DirectBackend {
       return;
     }
     if (cmd === 'enableMic') return; // nothing to prepare: audio is accepted while the key is held
+    if (cmd === 'setAudioMix') {
+      if (['main', 'sub', 'both'].includes(value)) client.mix = value;
+      return;
+    }
 
     const rig = this.rig;
     if (!rig) return;
     const number = Number(value);
+    const inBand = (hz) => Number.isFinite(hz) && this.profile.bands.some((b) => hz >= b.start && hz <= b.end);
 
     switch (cmd) {
       case 'getStatus':
@@ -240,9 +281,7 @@ class DirectBackend {
         else if (this.talker === client) this.setTalker(null);
         break;
       case 'setFrequency':
-        if (Number.isFinite(number) && this.profile.bands.some((b) => number >= b.start && number <= b.end)) {
-          rig.setFrequency(Math.round(number));
-        }
+        if (inBand(number)) rig.setFrequency(Math.round(number));
         break;
       case 'setMode':
         rig.setMode(String(value));
@@ -280,6 +319,57 @@ class DirectBackend {
       case 'setNoiseReduction':
         rig.setNoiseReduction(!!value);
         break;
+
+      // --- Second receiver ---
+      case 'setDualWatch':
+        rig.setDualWatch(!!value);
+        break;
+      case 'setSubFrequency':
+        if (inBand(number)) rig.setFrequency(Math.round(number), 'sub');
+        break;
+      case 'setSubMode':
+        rig.setMode(String(value), 'sub');
+        break;
+      case 'setSubSquelch':
+        if (Number.isFinite(number)) rig.setSquelch(number, 'sub');
+        break;
+      case 'swapBands':
+        if (!this.talker) rig.swapBands();
+        break;
+
+      // --- Scanning: "go here and tell me if anyone is talking" ---
+      case 'scanProbe': {
+        const hz = value ? Math.round(number) : 0;
+        if (hz && !inBand(hz)) break;
+        if (this.talker) {
+          client.ws.sendJson({ type: 'scanResult', id: msg.id, busy: null });
+          break;
+        }
+        rig.probe(hz, msg.mode ? String(msg.mode) : null).then((result) => {
+          client.ws.sendJson({ type: 'scanResult', id: msg.id, ...result });
+        });
+        break;
+      }
+
+      // --- Satellites ---
+      case 'satStart': {
+        const downlink = Math.round(Number(msg.downlink));
+        const uplink = Math.round(Number(msg.uplink));
+        const tone = Number(msg.tone) || 0;
+        if (!inBand(downlink) || !inBand(uplink) || this.talker) break;
+        if (tone && !this.profile.ctcssTones.includes(tone)) break;
+        rig.satelliteStart({ downlink, uplink, mode: String(msg.mode || 'FM'), tone });
+        break;
+      }
+      case 'satTune': {
+        const downlink = Math.round(Number(msg.downlink)) || 0;
+        const uplink = Math.round(Number(msg.uplink)) || 0;
+        rig.satelliteTune({ downlink: inBand(downlink) ? downlink : 0, uplink: inBand(uplink) ? uplink : 0 });
+        break;
+      }
+      case 'satStop':
+        if (!this.talker) rig.satelliteStop();
+        break;
       default:
         break;
     }
@@ -291,12 +381,17 @@ class DirectBackend {
     this.stopping = true;
     clearTimeout(this.retryTimer);
     clearTimeout(this.talkTimer);
+    clearInterval(this.talkWatch);
     const rig = this.rig;
     const session = this.session;
     if (rig && (this.talker || rig.state.transmitting)) {
       this.talker = null;
       // Wait for the unkey to be acknowledged, but not for ever.
       await Promise.race([rig.setTransmit(false), new Promise((r) => setTimeout(r, 800))]);
+    }
+    if (rig && rig.satelliteByUs) {
+      // Hand the radio back the way it was found.
+      await Promise.race([rig.satelliteStop(), new Promise((r) => setTimeout(r, 800))]);
     }
     if (rig) rig.stop();
     if (session) session.close();

@@ -16,6 +16,122 @@ export const TIPS = {
     title: 'Full control panel',
     body: 'Opens wfweb’s own page, which has every setting this page leaves out: radio memories, digital modes, the Morse keyer and more.',
   },
+  phone: {
+    title: 'Use on a phone',
+    body: 'Shows the address for opening this console on a phone or tablet on your home network, and how to switch that on.',
+  },
+
+  // --- Second receiver ---
+  second: {
+    title: 'Second receiver',
+    body: 'This radio has two receivers. The second can listen on another band while you use the main one, so you can keep an ear on a repeater or a calling frequency. It only listens: you always transmit on the main one.',
+  },
+  secondToggle: {
+    title: 'Second receiver on or off',
+    body: 'Switches the second receiver on. The radio’s own screen calls this Dualwatch.',
+  },
+  secondFreq: {
+    title: 'Second receiver frequency',
+    body: 'Where the second receiver listens. Click to type a new one. It has to be on a different band from the main receiver.',
+  },
+  secondVolume: {
+    title: 'Second receiver volume',
+    body: 'How loud the second receiver is next to the main one, on this computer. At zero you hear the main receiver only.',
+  },
+  secondSwap: {
+    title: 'Swap with main',
+    body: 'The two receivers trade places. What the second was listening to becomes the main frequency, the one you can transmit on.',
+  },
+
+  // --- Tabs ---
+  tabRepeaters: {
+    title: 'Repeaters',
+    body: 'Your own list of local repeaters, imported from a file. Click one to tune to it with its shift and tone set for you.',
+  },
+  tabSatellites: {
+    title: 'Satellites',
+    body: 'When the space station and the amateur satellites will pass over you, and following one with the radio as it goes by.',
+  },
+  tabLogbook: {
+    title: 'Logbook',
+    body: 'A record of who you talked to, when, and on what frequency. In most countries keeping one is a tradition rather than a rule, and it is how contacts get confirmed for awards.',
+  },
+
+  // --- Scan ---
+  scan: {
+    title: 'Scan',
+    body: 'Steps through a list of frequencies and stops when someone is talking, like the seek button on a car radio. It waits while the conversation lasts and moves on four seconds after it ends. Set the squelch first, so that empty channels are silent.',
+  },
+  scanFavorites: {
+    title: 'Scan favorites',
+    body: 'Goes round your saved frequencies.',
+  },
+  scanRepeaters: {
+    title: 'Scan repeaters',
+    body: 'Goes round the repeaters in your imported list that are on this band.',
+  },
+  scanBand: {
+    title: 'Scan this part of the band',
+    body: 'Steps through the part of the band you are in, one tuning step at a time. Set Step to the local channel spacing first: often 15 or 20 kHz on 2 meters and 25 kHz on 70 centimeters.',
+  },
+
+  // --- Repeater list ---
+  repeaterImport: {
+    title: 'Import a list',
+    body: 'Reads a file of repeaters exported from RepeaterBook or made with CHIRP. The list stays on this computer.',
+  },
+
+  // --- Satellites ---
+  satLocation: {
+    title: 'Your location',
+    body: 'Pass times depend on where you are. A grid square is the short code hams use for a location, such as FN31. Yours is kept on this computer.',
+  },
+  satRefresh: {
+    title: 'Refresh',
+    body: 'Fetches the latest orbit data. Satellites drift, so predictions from data more than a week or two old go wrong.',
+  },
+  satTrack: {
+    title: 'Track this satellite',
+    body: 'Sets the radio up for it: listening on the satellite’s downlink, transmitting on its uplink with the right tone, and keeping both corrected as the satellite’s motion shifts them. Press it before the pass starts so you are ready.',
+  },
+  satStop: {
+    title: 'Stop tracking',
+    body: 'Leaves satellite mode and puts the radio back on the frequencies it was on before.',
+  },
+
+  // --- Logbook ---
+  logContact: {
+    title: 'Log this contact',
+    body: 'Opens the logbook with the time, frequency and mode already filled in. You add the other station’s call sign.',
+  },
+  myCall: {
+    title: 'Your call sign',
+    body: 'The call sign on your license. It is written into the exported file so logging sites know whose contacts these are.',
+  },
+  logExport: {
+    title: 'Export the logbook',
+    body: 'Downloads it as an ADIF file, the format that Logbook of The World, QRZ, eQSL and logging programs import.',
+  },
+  logCall: {
+    title: 'Their call sign',
+    body: 'The call sign of the station you talked to, as they gave it on the air.',
+  },
+  logTime: {
+    title: 'When',
+    body: 'The time of the contact, in your local time. It is stored and exported in UTC, the worldwide time hams log in.',
+  },
+  logFreq: {
+    title: 'Frequency',
+    body: 'Filled in from the radio. Change it if you are writing up an earlier contact.',
+  },
+  logSent: {
+    title: 'Report you gave',
+    body: 'How well you heard them. On voice it is two digits: how readable, from 1 to 5, then how strong, from 1 to 9. “59” means perfectly readable and very strong.',
+  },
+  logRcvd: {
+    title: 'Report you got',
+    body: 'What they said about your signal, in the same two digits.',
+  },
 
   // --- Tuning ---
   freq: {
@@ -170,7 +286,7 @@ export const TIPS = {
   // --- Talk ---
   micSetup: {
     title: 'Set up microphone',
-    body: 'Lets this page use your computer’s microphone. Your browser will ask for permission. Nothing goes on the air until you hold the talk button.',
+    body: 'Lets this page use this device’s microphone. Your browser will ask for permission. Nothing goes on the air until you hold the talk button.',
   },
   ptt: {
     title: 'Hold to talk',
@@ -199,7 +315,9 @@ export const TIPS = {
 const SHOW_DELAY_MS = 350;
 const STORAGE_KEY = 'console.tips';
 
-export function setupTips({ toggle }) {
+// explain: on touch screens, a button that makes the next taps explain
+// controls instead of pressing them.
+export function setupTips({ toggle, explain }) {
   const box = document.getElementById('tooltip');
   const titleEl = box.querySelector('.tooltip-title');
   const bodyEl = box.querySelector('.tooltip-body');
@@ -245,9 +363,9 @@ export function setupTips({ toggle }) {
     box.dataset.side = above ? 'above' : 'below';
   }
 
-  function show(el) {
+  function show(el, always = false) {
     const content = contentFor(el);
-    if (!content || !enabled) return;
+    if (!content || !(enabled || always)) return;
     current = el;
     titleEl.textContent = content.title;
     bodyEl.textContent = content.body;
@@ -288,6 +406,33 @@ export function setupTips({ toggle }) {
   });
   window.addEventListener('scroll', hide, true);
   window.addEventListener('blur', hide);
+
+  // A touch screen has no hover, so there "What does this do?" is a mode:
+  // while it is on, a tap shows the tip and the control is not pressed.
+  let explaining = false;
+  function setExplaining(on) {
+    explaining = on;
+    document.body.classList.toggle('explaining', on);
+    if (explain) explain.setAttribute('aria-pressed', String(on));
+    if (explain) explain.textContent = on ? 'Tap anything outlined. Tap here when done' : 'What does this do?';
+    if (!on) hide();
+  }
+  if (explain) explain.addEventListener('click', () => setExplaining(!explaining));
+  const intercept = (e) => {
+    if (!explaining || (explain && explain.contains(e.target))) return;
+    // Nothing underneath may react: this is how the talk button stays unpressed.
+    e.stopImmediatePropagation();
+    // Keep sliders from moving and menus from opening under the finger.
+    if (e.type === 'pointerdown' || e.type === 'mousedown') e.preventDefault();
+    if (e.type !== 'click') return;
+    e.preventDefault();
+    const el = tipTarget(e.target);
+    if (el) show(el, true);
+    else hide();
+  };
+  for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'click', 'change', 'input']) {
+    document.addEventListener(type, intercept, true);
+  }
 
   return { hide };
 }

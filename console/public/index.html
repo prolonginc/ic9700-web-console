@@ -17,12 +17,15 @@
   </div>
   <div class="topbar-actions">
     <span class="tips-hint" id="tipsHint">Point at anything to see what it does</span>
+    <button type="button" class="quiet-button" id="explainButton" aria-pressed="false">What does this do?</button>
     <label class="switch" data-tip="tipsToggle">
       <input type="checkbox" id="tipsToggle" checked>
       <span class="switch-track" aria-hidden="true"></span>
       <span>Beginner tips</span>
     </label>
     <a class="quiet-link" id="fullPanelLink" href="https://localhost:8080" target="_blank" rel="noopener" data-tip="fullPanel" hidden>Full control panel</a>
+    <button type="button" class="quiet-button" id="phoneButton" data-tip="phone" hidden>Use on a phone</button>
+    <button type="button" class="quiet-button" id="signOutButton" hidden>Sign out</button>
   </div>
 </header>
 
@@ -56,7 +59,10 @@
             <option value="100">100 Hz</option>
             <option value="1000">1 kHz</option>
             <option value="5000">5 kHz</option>
+            <option value="10000">10 kHz</option>
             <option value="12500">12.5 kHz</option>
+            <option value="15000">15 kHz</option>
+            <option value="20000">20 kHz</option>
             <option value="25000">25 kHz</option>
             <option value="100000">100 kHz</option>
             <option value="1000000">1 MHz</option>
@@ -70,9 +76,37 @@
 
     <p class="where" id="whereLine">Waiting for the radio…</p>
 
+    <div class="tracking" id="trackingBar" hidden>
+      <span class="tracking-dot" aria-hidden="true"></span>
+      <p class="tracking-text" id="trackingText"></p>
+      <button type="button" class="glass-button" id="trackingStop">Stop tracking</button>
+    </div>
+
+    <div class="second" id="second" hidden>
+      <span class="second-label" data-tip="second" tabindex="0">Second receiver</span>
+      <button type="button" class="glass-toggle" id="secondToggle" data-tip="secondToggle" aria-pressed="false">Off</button>
+      <div class="second-on" id="secondOn" hidden>
+        <button type="button" class="second-freq" id="secondFreq" data-tip="secondFreq" aria-label="Second receiver frequency. Click to type a new one.">
+          <span id="secondFreqText">---.---</span><span class="second-unit">MHz</span><span class="second-mode" id="secondMode"></span>
+        </button>
+        <form class="second-form" id="secondForm" hidden>
+          <input id="secondInput" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Second receiver frequency in MHz" placeholder="446.000">
+          <button type="submit" class="glass-button primary">Go</button>
+          <button type="button" class="glass-button" id="secondCancel">Cancel</button>
+        </form>
+        <label class="second-volume" data-tip="secondVolume">
+          <span>Volume</span>
+          <input type="range" id="secondVolume" min="0" max="100" value="0">
+        </label>
+        <button type="button" class="glass-button" id="secondSwap" data-tip="secondSwap">Swap with main</button>
+      </div>
+      <p class="second-error" id="secondError" role="alert"></p>
+    </div>
+
     <div class="bandmap-block">
       <div class="bandmap" id="bandmap" data-tip="bandmap">
         <div class="bandmap-segments" id="bandmapSegments"></div>
+        <div class="bandmap-repeaters" id="bandmapRepeaters"></div>
         <div class="bandmap-window" id="bandmapWindow" hidden></div>
         <div class="bandmap-pin" id="bandmapPin" hidden></div>
       </div>
@@ -89,7 +123,7 @@
       <canvas class="scope-waterfall" id="waterfall"></canvas>
       <div class="scope-marker" id="marker" hidden></div>
       <div class="scope-hover" id="hover" hidden><span id="hoverLabel"></span></div>
-      <span class="scope-tag scope-tag-spectrum" data-tip="spectrum" tabindex="0">Spectrum</span>
+      <span class="scope-tag scope-tag-spectrum" id="spectrumTag" data-tip="spectrum" tabindex="0">Spectrum</span>
       <span class="scope-tag scope-tag-waterfall" data-tip="waterfall" tabindex="0">Waterfall</span>
       <div class="scope-zoom" role="group" aria-label="Zoom">
         <button type="button" class="glass-button" id="zoomOut" data-tip="zoomOut" aria-label="Zoom out">
@@ -138,7 +172,7 @@
       <h2 id="talkHeading">Talk</h2>
 
       <div id="talkSetup">
-        <p class="card-note">To transmit, this page needs your computer’s microphone. Nothing goes on the air until you hold the talk button.</p>
+        <p class="card-note">To transmit, this page needs this device’s microphone. Nothing goes on the air until you hold the talk button.</p>
         <button type="button" class="big-button" id="micButton" data-tip="micSetup">Set up microphone</button>
       </div>
 
@@ -161,11 +195,22 @@
         <div class="field-head"><span class="field-name">Transmit power</span><span class="field-value" id="powerText">–</span></div>
         <input type="range" id="power" min="0" max="255" value="0">
       </label>
+
+      <button type="button" class="link-button" id="logContactButton" data-tip="logContact">Log this contact</button>
     </section>
 
   </aside>
 
-  <section class="controls" aria-label="Radio settings">
+  <section class="controls" aria-label="Radio settings and tools">
+
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" id="tabRadio" aria-controls="panelRadio" aria-selected="true">Radio</button>
+      <button type="button" role="tab" id="tabRepeaters" aria-controls="panelRepeaters" aria-selected="false" tabindex="-1" data-tip="tabRepeaters">Repeaters</button>
+      <button type="button" role="tab" id="tabSatellites" aria-controls="panelSatellites" aria-selected="false" tabindex="-1" data-tip="tabSatellites">Satellites</button>
+      <button type="button" role="tab" id="tabLogbook" aria-controls="panelLogbook" aria-selected="false" tabindex="-1" data-tip="tabLogbook">Logbook</button>
+    </div>
+
+    <div class="tabpanel" id="panelRadio" role="tabpanel" aria-labelledby="tabRadio">
 
     <div class="row">
       <h2 id="bandHeading">Band</h2>
@@ -235,6 +280,138 @@
       </div>
     </div>
 
+    <div class="row" id="scanRow" hidden>
+      <h2 class="has-tip" data-tip="scan" tabindex="0">Scan</h2>
+      <div class="row-body">
+        <div class="scan-idle" id="scanIdle">
+          <button type="button" class="small-button" id="scanFavorites" data-tip="scanFavorites">Favorites</button>
+          <button type="button" class="small-button" id="scanRepeaters" data-tip="scanRepeaters">Repeaters on this band</button>
+          <button type="button" class="small-button" id="scanBand" data-tip="scanBand">This part of the band</button>
+        </div>
+        <div class="scan-running" id="scanRunning" hidden>
+          <p class="scan-status" id="scanStatus" role="status"></p>
+          <button type="button" class="small-button" id="scanSkip">Skip</button>
+          <button type="button" class="small-button primary" id="scanStop">Stop here</button>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+    <div class="tabpanel" id="panelRepeaters" role="tabpanel" aria-labelledby="tabRepeaters" hidden>
+      <div class="panel-head">
+        <p class="panel-summary" id="repeaterSummary"></p>
+        <div class="panel-actions">
+          <label class="check"><input type="checkbox" id="repeaterThisBand" checked> This band only</label>
+          <input type="search" id="repeaterSearch" placeholder="Search name or place" aria-label="Search repeaters">
+          <button type="button" class="small-button" id="repeaterImport" data-tip="repeaterImport">Import a list</button>
+        </div>
+      </div>
+
+      <form class="import" id="repeaterImportBox" hidden>
+        <h3>Import a repeater list</h3>
+        <ol class="import-steps">
+          <li>On <a href="https://www.repeaterbook.com" target="_blank" rel="noopener">RepeaterBook</a> (a free account is needed to export), search for repeaters near you.</li>
+          <li>Export the results as <strong>CHIRP</strong> or <strong>CSV</strong>.</li>
+          <li>Choose that file here. A CHIRP file from any other source works too.</li>
+        </ol>
+        <div class="import-row">
+          <input type="file" id="repeaterFile" accept=".csv,text/csv,text/plain" aria-label="Repeater list file">
+          <label class="check"><input type="checkbox" id="repeaterReplace" checked> Replace the list I have now</label>
+        </div>
+        <p class="import-result" id="repeaterImportResult" role="status"></p>
+        <div class="import-row">
+          <button type="submit" class="small-button primary" id="repeaterImportGo" disabled>Import</button>
+          <button type="button" class="small-button" id="repeaterImportCancel">Cancel</button>
+        </div>
+      </form>
+
+      <div class="table-wrap" id="repeaterTableWrap" hidden>
+        <table class="list">
+          <thead><tr><th>Name</th><th>Frequency</th><th>Shift</th><th>Tone</th><th>Where</th><th class="num" id="repeaterDistanceHead">Distance</th></tr></thead>
+          <tbody id="repeaterRows"></tbody>
+        </table>
+      </div>
+      <p class="panel-empty" id="repeaterEmpty"></p>
+    </div>
+
+    <div class="tabpanel" id="panelSatellites" role="tabpanel" aria-labelledby="tabSatellites" hidden>
+      <div class="panel-head">
+        <p class="panel-summary" id="satSummary"></p>
+        <div class="panel-actions">
+          <button type="button" class="small-button" id="satLocationButton" data-tip="satLocation">Set my location</button>
+          <button type="button" class="small-button" id="satRefresh" data-tip="satRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <form class="import" id="satLocationBox" hidden>
+        <h3>Where are you?</h3>
+        <p class="import-note">Passes depend on where you stand. Your location is kept on this computer and is not sent anywhere.</p>
+        <div class="import-row">
+          <button type="button" class="small-button" id="satLocate">Use this device’s location</button>
+          <span class="import-or">or</span>
+          <label class="inline-field">Grid square or latitude, longitude
+            <input type="text" id="satLocationInput" autocomplete="off" spellcheck="false" placeholder="FN31 or 41.71, -72.73">
+          </label>
+        </div>
+        <p class="import-result" id="satLocationResult" role="status"></p>
+        <div class="import-row">
+          <button type="submit" class="small-button primary">Save</button>
+          <button type="button" class="small-button" id="satLocationCancel">Cancel</button>
+        </div>
+      </form>
+
+      <div class="table-wrap" id="satTableWrap" hidden>
+        <table class="list">
+          <thead><tr><th>Satellite</th><th>Starts</th><th>Lasts</th><th>Highest</th><th>Path</th><th>Listen / talk</th><th></th></tr></thead>
+          <tbody id="satRows"></tbody>
+        </table>
+      </div>
+      <p class="panel-empty" id="satEmpty"></p>
+      <p class="panel-foot" id="satFoot"></p>
+    </div>
+
+    <div class="tabpanel" id="panelLogbook" role="tabpanel" aria-labelledby="tabLogbook" hidden>
+      <div class="panel-head">
+        <p class="panel-summary" id="logSummary"></p>
+        <div class="panel-actions">
+          <label class="inline-field" data-tip="myCall">My call sign
+            <input type="text" id="myCall" maxlength="12" autocomplete="off" spellcheck="false" autocapitalize="characters">
+          </label>
+          <a class="small-button" id="logExport" href="api/logbook.adi" download data-tip="logExport">Export</a>
+        </div>
+      </div>
+
+      <form class="logform" id="logForm">
+        <label class="labelled" data-tip="logCall"><span class="labelled-name">Their call sign</span>
+          <input type="text" id="logCall" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="characters" required></label>
+        <label class="labelled" data-tip="logTime"><span class="labelled-name">When</span>
+          <input type="datetime-local" id="logTime" step="60"></label>
+        <label class="labelled" data-tip="logFreq"><span class="labelled-name">Frequency (MHz)</span>
+          <input type="text" id="logFreq" inputmode="decimal" autocomplete="off" spellcheck="false"></label>
+        <label class="labelled"><span class="labelled-name">Mode</span>
+          <select id="logMode"></select></label>
+        <label class="labelled" data-tip="logSent"><span class="labelled-name">Report you gave</span>
+          <input type="text" id="logSent" maxlength="6" autocomplete="off" spellcheck="false" value="59"></label>
+        <label class="labelled" data-tip="logRcvd"><span class="labelled-name">Report you got</span>
+          <input type="text" id="logRcvd" maxlength="6" autocomplete="off" spellcheck="false" value="59"></label>
+        <label class="labelled"><span class="labelled-name">Their name</span>
+          <input type="text" id="logName" maxlength="60" autocomplete="off"></label>
+        <label class="labelled logform-notes"><span class="labelled-name">Notes</span>
+          <input type="text" id="logNotes" maxlength="300" autocomplete="off"></label>
+        <button type="submit" class="small-button primary">Add to logbook</button>
+        <p class="logform-error" id="logError" role="alert"></p>
+      </form>
+
+      <div class="table-wrap" id="logTableWrap" hidden>
+        <table class="list">
+          <thead><tr><th>When</th><th>Call sign</th><th>Frequency</th><th>Mode</th><th>Gave</th><th>Got</th><th>Name and notes</th><th></th></tr></thead>
+          <tbody id="logRows"></tbody>
+        </table>
+      </div>
+      <p class="panel-empty" id="logEmpty"></p>
+    </div>
+
   </section>
 
 </main>
@@ -244,6 +421,12 @@
   <p class="tooltip-body"></p>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog class="sheet" id="phoneDialog" aria-labelledby="phoneHeading">
+  <h2 id="phoneHeading">Use the console on a phone or tablet</h2>
+  <div id="phoneBody"></div>
+  <form method="dialog"><button class="small-button primary">Done</button></form>
+</dialog>
 
 <script type="module" src="js/app.js"></script>
 </body>

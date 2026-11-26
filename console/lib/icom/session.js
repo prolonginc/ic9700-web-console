@@ -28,7 +28,7 @@ const TX_FIRST_PART = 1364;
 class LoginError extends Error {}
 
 class IcomSession extends EventEmitter {
-  constructor({ host, user, pass, controlPort = 50001, clientName = 'radio-console' }) {
+  constructor({ host, user, pass, controlPort = 50001, clientName = 'radio-console', stereo = false }) {
     super();
     this.host = host;
     this.user = user;
@@ -36,6 +36,7 @@ class IcomSession extends EventEmitter {
     this.controlPort = controlPort;
     this.clientName = clientName;
     this.sampleRate = SAMPLE_RATE;
+    this.stereo = stereo; // ask for the two receivers on separate channels
 
     this.control = null;
     this.civ = null;
@@ -176,6 +177,7 @@ class IcomSession extends EventEmitter {
         civPort: civ.localPort,
         audioPort: audio.localPort,
         txBufferMs: TX_BUFFER_MS,
+        stereo: this.stereo,
       }),
     );
     await this.until(

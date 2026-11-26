@@ -1,7 +1,7 @@
 {
   "name": "ic9700-web-console",
   "version": "0.1.0",
-  "description": "Beginner-friendly browser console for the Icom IC-9700: tune, watch the spectrum and waterfall, listen and talk, with every control explained in plain language.",
+  "description": "Beginner-friendly browser console for the Icom IC-9700: tune, watch the spectrum and waterfall, listen and talk, scan, follow satellites and keep a logbook, with every control explained in plain language.",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -9,7 +9,8 @@
     "url": "git+https://github.com/prolonginc/ic9700-web-console.git"
   },
   "scripts": {
-    "start": "./start.sh"
+    "start": "./start.sh",
+    "test": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=18"
@@ -24,6 +25,10 @@
     "remote-control",
     "waterfall",
     "websocket",
-    "web-audio"
+    "web-audio",
+    "satellite-tracking",
+    "sgp4",
+    "adif",
+    "repeaters"
   ]
 }

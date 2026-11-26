@@ -12,6 +12,9 @@ export class Speaker {
     this.volume = 0.8;
     this.muted = false;
     this.framesReceived = 0;
+    // How loud each receiver is when both arrive (see play).
+    this.mainLevel = 1;
+    this.subLevel = 0;
   }
 
   get running() {
@@ -43,14 +46,32 @@ export class Speaker {
     this.gain = null;
   }
 
-  // A 0x02 frame from the radio link.
-  play(buffer) {
+  // A 0x02 frame from the radio link. With two channels in it (main receiver
+  // on the left, second receiver on the right) they are blended here, each at
+  // its own level, into the one stream that is played.
+  play(buffer, mayBeStereo = true) {
     if (!this.node) return;
     this.framesReceived++;
-    const pcm = new Int16Array(buffer, AUDIO_HEADER_BYTES);
-    const samples = new Float32Array(pcm.length);
-    for (let i = 0; i < pcm.length; i++) samples[i] = pcm[i] / 32768;
+    const stereo = mayBeStereo && new Uint8Array(buffer, 1, 1)[0] === 2;
+    const pcm = new Int16Array(buffer, AUDIO_HEADER_BYTES, Math.floor((buffer.byteLength - AUDIO_HEADER_BYTES) / 2));
+    let samples;
+    if (stereo) {
+      const n = pcm.length >> 1;
+      const a = this.mainLevel / 32768;
+      const b = this.subLevel / 32768;
+      samples = new Float32Array(n);
+      for (let i = 0; i < n; i++) samples[i] = pcm[2 * i] * a + pcm[2 * i + 1] * b;
+    } else {
+      samples = new Float32Array(pcm.length);
+      for (let i = 0; i < pcm.length; i++) samples[i] = pcm[i] / 32768;
+    }
     this.node.port.postMessage(samples, [samples.buffer]);
+  }
+
+  // Levels from 0 to 1 for the main and the second receiver.
+  setLevels(main, sub) {
+    this.mainLevel = main;
+    this.subLevel = sub;
   }
 
   setVolume(v) {

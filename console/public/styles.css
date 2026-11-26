@@ -701,8 +701,13 @@ button {
   background: var(--glass);
 }
 
-.offline .scope-empty {
+.offline .scope-empty,
+.no-sweeps .scope-empty {
   display: flex;
+}
+
+.no-sweeps .scope-empty {
+  background: rgba(10, 28, 41, 0.82);
 }
 
 /* ------------------------------------------------------------------ Cards */
@@ -1195,6 +1200,632 @@ select {
   color: #fff;
 }
 
+/* ------------------------------------------- Second receiver, tracking bar */
+
+.second {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding: 7px 10px 7px 12px;
+  border: 1px solid var(--glass-rule);
+  border-radius: 10px;
+}
+
+.second-label {
+  color: var(--glass-soft);
+  font-size: 14px;
+  cursor: help;
+}
+
+.tips-off .second-label {
+  cursor: default;
+}
+
+.glass-toggle {
+  height: 32px;
+  min-width: 52px;
+  padding: 0 12px;
+  border: 1px solid var(--glass-rule);
+  border-radius: 16px;
+  background: var(--glass-raised);
+  color: var(--glass-ink);
+  font-weight: 600;
+}
+
+.glass-toggle[aria-pressed="true"] {
+  border-color: var(--amber);
+  background: var(--amber);
+  color: #1b1400;
+}
+
+.second-on {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.second-freq {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--glass-ink);
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.second-freq:hover {
+  background: var(--glass-raised);
+}
+
+.second-unit,
+.second-mode {
+  margin-left: 7px;
+  color: var(--glass-soft);
+  font-size: 14px;
+}
+
+.second-form {
+  display: flex;
+  gap: 8px;
+}
+
+.second-form input {
+  width: 132px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--glass-rule);
+  border-radius: 8px;
+  background: var(--glass-raised);
+  color: var(--glass-ink);
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.second-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--glass-soft);
+  font-size: 14px;
+}
+
+.second-volume input {
+  width: 110px;
+  accent-color: var(--amber);
+}
+
+.second .glass-button {
+  height: 34px;
+  font-size: 14px;
+}
+
+.second-error {
+  flex-basis: 100%;
+  color: #ffb4a8;
+  font-size: 14px;
+}
+
+.second-error:empty {
+  display: none;
+}
+
+/* Shown while the radio is following a satellite. */
+.tracking {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid rgba(255, 183, 3, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 183, 3, 0.1);
+}
+
+.tracking-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.tracking-text {
+  flex: 1 1 260px;
+}
+
+.tracking-text strong {
+  font-family: var(--font-num);
+  font-size: 16px;
+}
+
+.tracking-text span {
+  color: var(--glass-soft);
+}
+
+/* Repeaters from the imported list, as ticks along the top of the band map. */
+.bandmap-repeaters {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bandmap-repeater {
+  position: absolute;
+  top: -5px;
+  width: 9px;
+  height: 11px;
+  margin-left: -4.5px;
+  pointer-events: auto;
+}
+
+.bandmap-repeater::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: #fff;
+}
+
+.bandmap-repeater:hover::after {
+  left: 2.5px;
+  width: 4px;
+  background: var(--amber);
+}
+
+/* ------------------------------------------------------- Tabs and panels */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin: -4px 0 12px;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+}
+
+.tabs button {
+  flex: none;
+  padding: 6px 13px 8px;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+
+.tabs button:hover {
+  color: var(--ink);
+}
+
+.tabs button[aria-selected="true"] {
+  border-bottom-color: var(--cobalt);
+  color: var(--ink);
+}
+
+.tabs .tab-count {
+  margin-left: 6px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+
+.panel-summary {
+  color: var(--ink-soft);
+}
+
+.panel-summary strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.panel-empty {
+  max-width: 68ch;
+  padding: 4px 0 2px;
+  color: var(--ink-soft);
+}
+
+.panel-empty:empty,
+.panel-foot:empty {
+  display: none;
+}
+
+.panel-foot {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.panel-foot a,
+.panel-empty a,
+.import a {
+  color: var(--cobalt-deep);
+  text-underline-offset: 3px;
+}
+
+input[type="text"],
+input[type="search"],
+input[type="datetime-local"],
+input[type="password"] {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cobalt);
+}
+
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.inline-field input {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+#repeaterSearch {
+  width: 210px;
+}
+
+#myCall {
+  width: 110px;
+  text-transform: uppercase;
+  font-family: var(--font-num);
+  font-weight: 700;
+}
+
+a.small-button {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.small-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* A boxed form that opens inside a panel: import a list, set a location. */
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.import h3 {
+  margin: 0;
+  font-family: var(--font-num);
+  font-size: 17px;
+}
+
+.import-steps {
+  margin: 0;
+  padding-left: 20px;
+  max-width: 68ch;
+}
+
+.import-steps li + li {
+  margin-top: 3px;
+}
+
+.import-note {
+  max-width: 68ch;
+  color: var(--ink-soft);
+}
+
+.import-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.import-or {
+  color: var(--ink-soft);
+}
+
+.import-result {
+  max-width: 68ch;
+}
+
+.import-result:empty {
+  display: none;
+}
+
+.import-result.bad {
+  color: #a3261c;
+}
+
+/* Lists: repeaters, satellite passes, the logbook. */
+.table-wrap {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.list {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.list th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 12px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.list td {
+  padding: 7px 12px;
+  border-top: 1px solid var(--rule);
+  vertical-align: baseline;
+}
+
+.list .num {
+  text-align: right;
+}
+
+.list .figure {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.list .soft {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.list tr.go {
+  cursor: pointer;
+}
+
+.list tr.go:hover td {
+  background: var(--cobalt-wash);
+}
+
+.list tr.current td {
+  background: var(--cobalt-wash);
+}
+
+.list tr.current td:first-child {
+  box-shadow: inset 3px 0 0 var(--cobalt);
+}
+
+.list tr.dim td {
+  color: var(--ink-soft);
+}
+
+.list .row-button {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  background: var(--card);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.list .row-button.primary {
+  border-color: var(--cobalt);
+  background: var(--cobalt);
+  color: #fff;
+}
+
+.list .row-remove {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.list .row-remove:hover {
+  background: #f6dfdc;
+  color: #a3261c;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 9px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pill.now {
+  border-color: var(--rx);
+  background: #e2f5ee;
+  color: #0c6a48;
+  font-weight: 600;
+}
+
+/* Scan */
+.scan-idle,
+.scan-running {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.scan-status {
+  min-width: 240px;
+}
+
+.scan-status strong {
+  font-family: var(--font-num);
+  font-size: 16px;
+}
+
+/* Logbook entry form */
+.logform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.logform input[type="text"] {
+  width: 112px;
+}
+
+#logCall {
+  width: 132px;
+  text-transform: uppercase;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 17px;
+}
+
+#logSent,
+#logRcvd {
+  width: 92px;
+}
+
+#logName {
+  width: 140px;
+}
+
+.logform-notes {
+  flex: 1 1 180px;
+}
+
+.logform-notes input[type="text"] {
+  width: 100%;
+}
+
+.logform-error {
+  flex-basis: 100%;
+  color: #a3261c;
+}
+
+.logform-error:empty {
+  display: none;
+}
+
+/* A dialog that explains something, e.g. how to open the page on a phone. */
+.sheet {
+  width: min(540px, calc(100vw - 32px));
+  padding: 20px 22px 18px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 16px 48px rgba(10, 28, 41, 0.35);
+}
+
+.sheet::backdrop {
+  background: rgba(10, 28, 41, 0.45);
+}
+
+.sheet h2 {
+  margin-bottom: 10px;
+  font-size: 21px;
+}
+
+.sheet p,
+.sheet ol {
+  margin: 0 0 10px;
+}
+
+.sheet ol {
+  padding-left: 20px;
+}
+
+.sheet code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--paper);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+}
+
+.sheet .address {
+  display: block;
+  margin: 2px 0 10px;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 21px;
+  word-break: break-all;
+}
+
+.sheet form {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
 /* ---------------------------------------------------------------- Overlay */
 
 .tooltip {
@@ -1220,11 +1851,14 @@ select {
   color: #d5dedb;
 }
 
+/* At the top, clear of the controls it is usually talking about, and never
+   in the way of a click. */
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  top: 10px;
   z-index: 60;
+  pointer-events: none;
   transform: translateX(-50%);
   max-width: min(560px, calc(100vw - 40px));
   padding: 11px 16px;
@@ -1260,6 +1894,225 @@ select {
   .freq-fine {
     font-size: 26px;
   }
+}
+
+/* Tablets held upright: Listen and Talk side by side under the display. */
+@media (min-width: 641px) and (max-width: 1020px) {
+  .side {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .side .card {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* Phones */
+@media (max-width: 640px) {
+  body {
+    font-size: 16px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+
+  .station {
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .desk {
+    gap: 12px;
+    padding: 0 10px 16px;
+  }
+
+  .glass {
+    min-height: 0;
+    padding: 12px 12px 10px;
+    border-radius: 14px;
+  }
+
+  .readout-row {
+    gap: 8px 12px;
+  }
+
+  .freq-main {
+    font-size: 44px;
+  }
+
+  .freq-fine {
+    font-size: 22px;
+  }
+
+  .freq-unit {
+    margin-left: 8px;
+    font-size: 16px;
+  }
+
+  .tuner {
+    width: 100%;
+  }
+
+  .tune-arrow {
+    flex: 1 1 0;
+    height: 48px;
+  }
+
+  .step {
+    height: 48px;
+  }
+
+  .legend {
+    display: none;
+  }
+
+  .scope {
+    min-height: 250px;
+  }
+
+  .scope-zoom-label {
+    min-width: 96px;
+    font-size: 13px;
+  }
+
+  .second-on {
+    gap: 8px 10px;
+  }
+
+  .card {
+    padding: 14px 14px 16px;
+  }
+
+  .ptt {
+    height: 112px;
+  }
+
+  .controls {
+    padding: 10px 12px 14px;
+  }
+
+  /* Each row stacks: what it is, then its controls. */
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .row-repeater > h2 {
+    padding-top: 0;
+  }
+
+  .row-heading-inline {
+    flex-basis: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+
+  .segmented button {
+    height: 42px;
+  }
+
+  .favorite-go {
+    height: 40px;
+    line-height: 40px;
+  }
+
+  .favorite-remove {
+    width: 32px;
+  }
+
+  .small-button,
+  select,
+  input[type="text"],
+  input[type="search"],
+  input[type="datetime-local"] {
+    height: 42px;
+  }
+
+  .panel-actions,
+  .panel-actions input[type="search"] {
+    width: 100%;
+  }
+
+  .table-wrap {
+    max-height: 60vh;
+  }
+
+  .list th,
+  .list td {
+    padding: 8px 9px;
+  }
+
+  .logform .labelled,
+  .logform input[type="text"],
+  .logform input[type="datetime-local"],
+  .logform select,
+  .logform .small-button {
+    width: 100%;
+  }
+
+  .logform .labelled {
+    flex: 1 1 130px;
+  }
+
+  #logCall,
+  #logSent,
+  #logRcvd,
+  #logName {
+    width: 100%;
+  }
+
+  .toast {
+    top: 8px;
+    max-width: calc(100vw - 20px);
+  }
+}
+
+/* No hover on a touch screen: nothing should look like it needs one. */
+@media (hover: none) {
+  .scope {
+    cursor: default;
+  }
+
+  .scope-hover {
+    display: none;
+  }
+}
+
+#explainButton {
+  display: none;
+}
+
+@media (hover: none) {
+  #explainButton {
+    display: inline-block;
+  }
+
+  /* Tips come from the button above on a touch screen, not from hovering. */
+  .switch[data-tip="tipsToggle"] {
+    display: none;
+  }
+}
+
+#explainButton[aria-pressed="true"] {
+  border-color: var(--amber);
+  background: #fff3cf;
+  font-weight: 600;
+}
+
+/* "Explain" mode: the next tap shows what a control does instead of using it. */
+.explaining [data-tip],
+.explaining [data-tip-title] {
+  outline: 2px dashed var(--amber);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

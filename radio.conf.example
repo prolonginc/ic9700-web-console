@@ -24,12 +24,23 @@ BACKEND=direct
 
 # --- Optional. Remove the leading "# " from a setting to change it. ---
 
+# Use the console from a phone or tablet on your home network. Choose a
+# password of at least 8 characters: whoever has it can operate your radio.
+# With this set, the console also listens on https://<this computer>:9743.
+# Read "Phones and tablets" in the README first.
+# PHONE_PASS='choose-a-password'
+# PHONE_PORT=9743
+
 # The port the page is served on.
 # PORT=9700
 
 # Which network address the page is served on. The default keeps it private to
 # this computer. Read "Keeping it safe" in the README before changing this.
 # BIND=127.0.0.1
+
+# Where favorites, the repeater list, the logbook and your location are kept.
+# The default is a folder named data next to this file.
+# DATA_DIR=/full/path/to/a/folder
 
 # Only for BACKEND=wfweb: the full path of the folder that holds the wfweb
 # program, if it is not in wfweb/wfweb-macos-arm64 next to this file.

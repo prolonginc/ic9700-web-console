@@ -6,12 +6,15 @@
 //                  messages from the server ({type, ...})
 //   binary 0x01    spectrum sweep: [1][scopeMode][outOfRange][pad]
 //                  [start MHz f32][end MHz f32][one byte per pixel]
-//   binary 0x02    receive audio: 6-byte header, then 16-bit mono PCM
+//   binary 0x02    receive audio: 6-byte header, then 16-bit PCM. Byte 1 of
+//                  the header is 2 when there are two channels (main
+//                  receiver left, second receiver right), otherwise one.
 //   binary 0x03    transmit audio, sent by us: [3][0][seq u16][0 u16][PCM]
 //
 // Events: 'link' (socket up/down), 'info' (what the radio can do),
 //         'state' (settings and meters changed; detail = the changed fields),
-//         'spectrum', 'audio', 'notice' (a message worth showing the user).
+//         'spectrum', 'audio', 'notice' (a message worth showing the user),
+//         'scanResult' (the answer to one scanning step).
 
 const RETRY_MIN_MS = 1000;
 const RETRY_MAX_MS = 5000;
@@ -139,6 +142,9 @@ export class Radio extends EventTarget {
         break;
       case 'error':
         if (msg.message) this.emit('notice', { text: msg.message });
+        break;
+      case 'scanResult':
+        this.emit('scanResult', msg);
         break;
       default:
         break; // logbook, APRS and the rest are not used by this page

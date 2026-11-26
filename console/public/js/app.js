@@ -6,6 +6,14 @@ import { Scope } from './scope.js';
 import { Speaker, Microphone } from './audio.js';
 import { BANDS, KINDS, bandFor, segmentFor, markFor } from './bandplan.js';
 import { setupTips } from './tips.js';
+import { splitFrequency, formatMHz, formatDistance, formatTone, parseFrequency } from './format.js';
+import { api, Kept } from './kept.js';
+import { setupTabs } from './tabs.js';
+import { setupRepeaters } from './repeaters.js';
+import { setupScan } from './scan.js';
+import { setupSecond } from './second.js';
+import { setupSatellites } from './satellites.js';
+import { setupLogbook } from './logbook.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,32 +34,6 @@ const store = {
     }
   },
 };
-
-// ------------------------------------------------------------------ Format
-
-function splitFrequency(hz) {
-  const f = Math.round(hz);
-  const mhz = Math.floor(f / 1e6);
-  const khz = String(Math.floor((f % 1e6) / 1e3)).padStart(3, '0');
-  const fine = String(f % 1e3).padStart(3, '0');
-  return { main: `${mhz}.${khz}`, fine };
-}
-
-function formatMHz(hz, decimals = 3) {
-  // Show more places only when the frequency needs them.
-  const exact = hz / 1e6;
-  let d = decimals;
-  while (d < 6 && Math.abs(exact * 10 ** d - Math.round(exact * 10 ** d)) > 1e-6) d++;
-  return exact.toFixed(d);
-}
-
-function formatDistance(hz) {
-  return hz >= 1e6 ? `${hz / 1e6} MHz` : `${hz / 1e3} kHz`;
-}
-
-function formatTone(tenths) {
-  return `${(tenths / 10).toFixed(1)} Hz`;
-}
 
 // --------------------------------------------------------------- The parts
 
@@ -78,7 +60,11 @@ const scope = new Scope(
   },
 );
 
-setupTips({ toggle: $('tipsToggle') });
+const tips = setupTips({ toggle: $('tipsToggle'), explain: $('explainButton') });
+const tabs = setupTabs();
+
+// Kept on the console's computer, so every device sees the same.
+const settings = new Kept('settings', {});
 
 let toastTimer = null;
 function toast(text, ms = 6000) {
@@ -118,9 +104,10 @@ function renderLink() {
   document.title = `${model} console`;
 
   // Which program is talking to the radio decides what to say when it can't,
-  // and whether there is a second control panel to link to.
+  // and whether there is a second control panel to link to (on this computer
+  // only: its address means nothing from another device).
   if (radio.info) viaWfweb = !radio.info.direct;
-  $('fullPanelLink').hidden = !viaWfweb;
+  $('fullPanelLink').hidden = !viaWfweb || document.body.classList.contains('remote');
 
   let text;
   if (!radio.linkUp) text = 'The console program on this computer isn’t answering. Trying again…';
@@ -178,9 +165,25 @@ function rangeText() {
   return `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]} MHz`;
 }
 
+// The frequency being listened to. While following a satellite that is the
+// second receiver's; the main one is only the transmitter then.
+function listenFrequency() {
+  return state.satMode ? state.subFrequency : state.frequency;
+}
+
 function setFrequency(hz) {
   const target = Math.round(hz);
   if (!radio.rigConnected) return false;
+  if (state.satMode) {
+    const following = satellites.tracking();
+    toast(
+      following
+        ? `The radio is following ${following.name}, which sets the frequency. Stop tracking to tune by hand.`
+        : 'The radio is in satellite mode. Leave it to tune by hand.',
+    );
+    return false;
+  }
+  scan.stop(); // tuning by hand ends a scan
   if (!inRadioRange(target)) {
     toast(`${formatMHz(target)} MHz is outside what this radio covers (${rangeText()}).`);
     return false;
@@ -203,33 +206,20 @@ $('tuneDown').addEventListener('click', () => tune(-1));
 $('tuneUp').addEventListener('click', () => tune(1));
 
 function renderFrequency() {
-  const f = state.frequency;
+  const f = listenFrequency();
   if (!f) return;
   const { main, fine } = splitFrequency(f);
   $('freqMain').textContent = main;
   $('freqFine').textContent = fine;
-  scope.setFrequency(f);
+  scope.setFrequency(state.frequency); // the band display is the main receiver's
   renderWhere();
   renderBandmap();
   renderBandButtons();
   renderRepeater();
   renderFavorites();
   rememberBandSpot();
-}
-
-function parseFrequency(text) {
-  let t = text.trim().toLowerCase().replace(/mhz$/, '').replace(/,/g, '.').replace(/\s+/g, '');
-  if (!/^\d[\d.]*$/.test(t)) return NaN;
-  const dot = t.indexOf('.');
-  if (dot >= 0) {
-    // "147.920.000" is a common way to write it: keep the first dot only.
-    t = t.slice(0, dot + 1) + t.slice(dot + 1).replace(/\./g, '');
-    return Math.round(parseFloat(t) * 1e6);
-  }
-  const v = Number(t);
-  if (v >= 1e7) return Math.round(v); // hertz
-  if (v >= 1e4) return Math.round(v * 1e3); // kilohertz
-  return Math.round(v * 1e6);
+  repeaters.render();
+  scan.render();
 }
 
 function openFrequencyForm() {
@@ -268,15 +258,23 @@ $('freqForm').addEventListener('submit', (e) => {
 });
 
 function renderWhere() {
-  const f = state.frequency;
+  const f = listenFrequency();
   const el = $('whereLine');
   const strong = document.createElement('strong');
   let rest = '';
   const band = bandFor(f);
   const seg = segmentFor(f);
   const mark = markFor(f);
-  if (!band) {
+  const known = repeaters.at(f);
+  if (state.satMode) {
+    const following = satellites.tracking();
+    strong.textContent = following ? `${following.name}’s downlink.` : 'Satellite downlink.';
+    rest = ' The frequency a satellite transmits on. The radio’s second receiver is listening here.';
+  } else if (!band) {
     strong.textContent = 'Outside the amateur bands.';
+  } else if (known) {
+    strong.textContent = `${known.name} repeater${known.place ? `, ${known.place}` : ''}.`;
+    rest = seg ? ` ${KINDS[seg.kind].line}` : '';
   } else if (mark) {
     strong.textContent = `${mark.label}.`;
     rest = ' A meeting place: make contact here, then move elsewhere to chat.';
@@ -338,7 +336,7 @@ function buildBandmap(band) {
 }
 
 function renderBandmap() {
-  const f = state.frequency;
+  const f = listenFrequency();
   const band = bandFor(f);
   const pin = $('bandmapPin');
   const win = $('bandmapWindow');
@@ -387,7 +385,7 @@ function availableBands() {
 
 function rememberBandSpot() {
   const band = bandFor(state.frequency);
-  if (!band || !state.mode) return;
+  if (!band || !state.mode || state.satMode) return;
   const memory = store.get('bandMemory', {});
   memory[band.id] = { freq: state.frequency, mode: state.mode };
   store.set('bandMemory', memory);
@@ -522,6 +520,12 @@ $('toneSelect').addEventListener('change', (e) => {
 });
 
 $('usualButton').addEventListener('click', () => {
+  // A repeater from the imported list beats the band's general custom.
+  const known = repeaters.at(state.frequency);
+  if (known && needsSettings(known)) {
+    recallFavorite(known);
+    return;
+  }
   const seg = segmentFor(state.frequency);
   if (!seg || !seg.usual) return;
   sendInOrder([
@@ -530,6 +534,15 @@ $('usualButton').addEventListener('click', () => {
   ]);
   radio.merge({ duplexOffset: seg.usual.offset, duplex: seg.usual.duplex });
 });
+
+// True if the radio is not set the way this repeater needs.
+function needsSettings(r) {
+  const offset = state.duplexOffset || 0;
+  const shift = state.duplex || 'OFF';
+  if (shift !== r.duplex || (r.duplex !== 'OFF' && offset !== r.offset)) return true;
+  if (r.toneMode === 'OFF') return false;
+  return (state.toneMode || 'OFF') !== r.toneMode || (r.toneMode === 'TSQL' ? state.tsqlFreq : state.toneFreq) !== r.tone;
+}
 
 function transmitFrequency() {
   const f = state.frequency;
@@ -569,6 +582,10 @@ function renderRepeater() {
   line.classList.remove('warn');
   if (!f) {
     line.textContent = '';
+  } else if (state.satMode) {
+    const strong = document.createElement('strong');
+    strong.textContent = `${formatMHz(f, 4)} MHz`;
+    line.replaceChildren('You transmit on ', strong, ', the satellite’s uplink, while listening on another band.');
   } else if (shift === 'OFF') {
     line.textContent = 'You transmit on the same frequency you listen to.';
   } else {
@@ -588,7 +605,17 @@ function renderRepeater() {
   const seg = segmentFor(f);
   const fmLike = ['FM', 'DV'].includes(state.mode);
   const want = seg && seg.usual;
-  if (want && fmLike && (shift !== want.duplex || offset !== want.offset)) {
+  const known = state.satMode ? null : repeaters.at(f);
+  if (state.satMode) {
+    usual.hidden = true;
+  } else if (known && needsSettings(known)) {
+    const bits = [];
+    if (known.duplex !== 'OFF') bits.push(`shift ${known.duplex === 'DUP-' ? '−' : '+'}, ${formatDistance(known.offset)}`);
+    else bits.push('no shift');
+    if (known.toneMode !== 'OFF') bits.push(`tone ${formatTone(known.tone)}`);
+    usual.textContent = `Use ${known.name}’s settings (${bits.join(', ')})`;
+    usual.hidden = false;
+  } else if (want && fmLike && (shift !== want.duplex || offset !== want.offset)) {
     const sign = want.duplex === 'DUP-' ? '−' : '+';
     usual.textContent = `Use the usual repeater settings here (shift ${sign}, ${formatDistance(want.offset)})`;
     usual.hidden = false;
@@ -606,8 +633,14 @@ const STARTER_FAVORITES = [
   { name: '23 cm calling', freq: 1294500000, mode: 'FM', starter: true },
 ].map((f) => ({ duplex: 'OFF', offset: 0, toneMode: 'OFF', tone: 0, ...f }));
 
+const keptFavorites = new Kept('favorites', STARTER_FAVORITES);
+
 function favorites() {
-  return store.get('favorites', STARTER_FAVORITES);
+  return keptFavorites.value || STARTER_FAVORITES;
+}
+
+function saveFavorites(list) {
+  keptFavorites.save(list).catch((err) => toast(`Couldn’t save your favorites: ${err.message}`));
 }
 
 function describeFavorite(fav) {
@@ -619,8 +652,13 @@ function describeFavorite(fav) {
   return `${parts.join(', ')}. Click to go there.`;
 }
 
-function recallFavorite(fav) {
-  if (!setFrequency(fav.freq)) return;
+// Goes to a saved frequency (a favorite, or a repeater from the list) and
+// sets its mode, shift and tone.
+function recallFavorite(fav, { quiet = false } = {}) {
+  if (quiet) {
+    // Already tuned there by a scan: only the settings are needed.
+    if (state.frequency !== fav.freq) return;
+  } else if (!setFrequency(fav.freq)) return;
   const commands = [['setMode', { value: fav.mode }]];
   if (fav.duplex && fav.duplex !== 'OFF' && fav.offset) commands.push(['setDuplexOffset', { value: fav.offset }]);
   commands.push(['setDuplex', { value: fav.duplex || 'OFF' }]);
@@ -665,10 +703,7 @@ function renderFavorites() {
       remove.textContent = '×';
       remove.setAttribute('aria-label', `Remove ${fav.name}`);
       remove.addEventListener('click', () => {
-        store.set(
-          'favorites',
-          favorites().filter((x) => !(x.name === fav.name && x.freq === fav.freq)),
-        );
+        saveFavorites(favorites().filter((x) => !(x.name === fav.name && x.freq === fav.freq)));
         renderFavorites();
       });
 
@@ -708,7 +743,7 @@ $('favoriteForm').addEventListener('submit', (e) => {
     toneMode,
     tone: toneMode === 'TSQL' ? state.tsqlFreq : state.toneFreq,
   };
-  store.set('favorites', [...favorites().filter((x) => !(x.name === fav.name && x.freq === fav.freq)), fav]);
+  saveFavorites([...favorites().filter((x) => !(x.name === fav.name && x.freq === fav.freq)), fav]);
   closeFavoriteForm();
   renderFavorites();
 });
@@ -795,19 +830,26 @@ function percentOf255(v) {
 $('squelch').addEventListener('input', (e) => {
   const value = Number(e.target.value);
   $('squelchText').textContent = value === 0 ? 'Open' : percentOf255(value);
-  sendThrottled('setSquelch', value);
-  state.squelch = value;
+  // While following a satellite, the receiver in use is the second one.
+  if (state.satMode) {
+    sendThrottled('setSubSquelch', value);
+    state.subSquelch = value;
+  } else {
+    sendThrottled('setSquelch', value);
+    state.squelch = value;
+  }
 });
 
 function renderSquelch() {
-  if (state.squelch === undefined) return;
-  if (document.activeElement !== $('squelch')) $('squelch').value = String(state.squelch);
-  $('squelchText').textContent = state.squelch === 0 ? 'Open' : percentOf255(state.squelch);
+  const value = state.satMode ? state.subSquelch : state.squelch;
+  if (value === undefined) return;
+  if (document.activeElement !== $('squelch')) $('squelch').value = String(value);
+  $('squelchText').textContent = value === 0 ? 'Open' : percentOf255(value);
 }
 
 // The meter value is decibels relative to S9: -54 is S0, 0 is S9.
 function renderSignal() {
-  const v = state.sMeter;
+  const v = state.satMode ? state.subSMeter : state.sMeter;
   if (v === undefined || state.transmitting) {
     $('signalText').textContent = state.transmitting ? 'Transmitting' : 'No reading';
     $('signalFill').style.width = '0%';
@@ -874,6 +916,7 @@ $('micButton').addEventListener('click', async () => {
 
 function talkDown() {
   if (talk.held || !mic.ready || !radio.rigConnected) return;
+  scan.stop();
   clearTimeout(talk.tailTimer);
   talk.held = true;
   talk.sending = true;
@@ -1018,15 +1061,138 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
+// ------------------------------------------------- Repeaters, scan and more
+
+// The imported repeater list changed, or the place distances are from did.
+function renderDirectory() {
+  renderWhere();
+  renderRepeater();
+  repeaters.render();
+  scan.render();
+}
+
+// Satellite tracking started or stopped: several readouts change meaning.
+function renderSatelliteState() {
+  renderFrequency();
+  renderSquelch();
+  renderSignal();
+  // The band display stays with the main receiver, which is the transmitter
+  // then, so it shows a different band from the readout above it.
+  $('spectrumTag').textContent = state.satMode ? 'Spectrum, uplink band' : 'Spectrum';
+}
+
+const repeaters = setupRepeaters({ $, radio, state, toast, recall: recallFavorite, inRadioRange, settings, listenFrequency, onChange: renderDirectory });
+const scan = setupScan({ $, radio, state, toast, recall: recallFavorite, favorites, repeaters, currentStep, inRadioRange });
+const second = setupSecond({ $, radio, state, speaker, store, toast, inRadioRange, rangeText });
+const satellites = setupSatellites({ $, radio, state, toast, settings, tabs, onChange: renderSatelliteState });
+const logbook = setupLogbook({
+  $,
+  radio,
+  state,
+  toast,
+  settings,
+  tabs,
+  // A satellite contact is logged on the satellite's published frequency,
+  // not the shifted one the radio happens to be on.
+  listening: () => {
+    const following = satellites.tracking();
+    return { freq: following ? following.downlink : listenFrequency(), mode: state.satMode ? state.subMode || state.mode : state.mode };
+  },
+  tracking: () => satellites.tracking(),
+});
+
+settings.load().then(() => {
+  logbook.showMyCall();
+  repeaters.render();
+  satellites.locationChanged();
+  if (settings.value && settings.value.location) satellites.load();
+});
+keptFavorites.load().then(() => renderFavorites());
+
+// ------------------------------------------------------ Phones and tablets
+
+function fillPhoneHelp(phone) {
+  const body = $('phoneBody');
+  const p = (...content) => {
+    const el = document.createElement('p');
+    el.append(...content);
+    return el;
+  };
+  const code = (text) => {
+    const el = document.createElement('code');
+    el.textContent = text;
+    return el;
+  };
+  if (phone.enabled && phone.urls.length) {
+    const address = document.createElement('span');
+    address.className = 'address';
+    address.textContent = phone.urls[0];
+    const steps = document.createElement('ol');
+    for (const text of [
+      'Put the phone on the same Wi-Fi as this computer and open that address in its browser.',
+      'The browser will warn that it does not know the certificate. That is expected: this computer made its own. Choose to carry on (on an iPhone, “Show Details”, then “visit this website”; on Android, “Advanced”, then “Proceed”).',
+      'Type the password you set as PHONE_PASS in radio.conf.',
+    ]) {
+      const li = document.createElement('li');
+      li.textContent = text;
+      steps.append(li);
+    }
+    body.replaceChildren(
+      p('On the phone or tablet, open:'),
+      address,
+      steps,
+      p('If sound or the microphone won’t start on the phone, install this console’s certificate: the sign-in page has a link and the steps.'),
+      ...(phone.urls.length > 1 ? [p('This computer also answers at ', code(phone.urls.slice(1).join('  ')), '.')] : []),
+    );
+  } else {
+    const steps = document.createElement('ol');
+    const items = [
+      ['Open ', code('radio.conf'), ' (next to start.sh) in a text editor.'],
+      ['Add a line with a password of your own, at least 8 characters: ', code("PHONE_PASS='…'")],
+      ['Stop the console and start it again, then come back here for the address to open.'],
+    ];
+    for (const parts of items) {
+      const li = document.createElement('li');
+      li.append(...parts);
+      steps.append(li);
+    }
+    body.replaceChildren(
+      p('Phone access is switched off. A phone needs a secure (HTTPS) connection before its browser allows sound and the microphone, and a password, because whoever opens the page can key your transmitter.'),
+      steps,
+    );
+  }
+}
+
+api('GET', 'api/whoami')
+  .then((who) => {
+    if (who.remote) {
+      // Reached from another device: there is something to sign out of.
+      $('signOutButton').hidden = false;
+      $('signOutButton').addEventListener('click', async () => {
+        await api('POST', 'api/logout', {}).catch(() => {});
+        location.href = 'login.html';
+      });
+      document.body.classList.add('remote');
+    } else {
+      $('phoneButton').hidden = false;
+      $('phoneButton').addEventListener('click', async () => {
+        const fresh = await api('GET', 'api/whoami').catch(() => who);
+        fillPhoneHelp(fresh.phone);
+        $('phoneDialog').showModal();
+      });
+    }
+  })
+  .catch(() => {});
+
 // ----------------------------------------------------------- Radio events
 
 const RENDERERS = [
-  [['frequency'], renderFrequency],
+  [['frequency', 'subFrequency', 'satMode'], renderFrequency],
   [['mode'], renderMode],
-  [['duplex', 'duplexOffset', 'toneMode', 'toneFreq', 'tsqlFreq'], renderRepeater],
+  [['duplex', 'duplexOffset', 'toneMode', 'toneFreq', 'tsqlFreq', 'satMode'], renderRepeater],
   [['spanIndex'], renderZoom],
-  [['sMeter'], renderSignal],
-  [['squelch'], renderSquelch],
+  [['sMeter', 'subSMeter', 'satMode'], renderSignal],
+  [['squelch', 'subSquelch', 'satMode'], renderSquelch],
   [['rfPower'], renderPower],
   [['preamp', 'nr'], renderToggles],
   [['transmitting', 'powerMeter', 'swrMeter'], renderTalk],
@@ -1043,6 +1209,8 @@ function renderEverything() {
   for (const [, fn] of RENDERERS) fn();
   renderFavorites();
   renderListen();
+  repeaters.render();
+  scan.render();
 }
 
 radio.addEventListener('link', () => {
@@ -1072,11 +1240,25 @@ radio.addEventListener('info', () => {
 });
 
 radio.addEventListener('state', (e) => renderChanged(e.detail));
+let lastSweepAt = 0;
 radio.addEventListener('spectrum', (e) => {
+  lastSweepAt = Date.now();
   scope.push(e.detail);
   renderBandmap();
 });
-radio.addEventListener('audio', (e) => speaker.play(e.detail));
+
+// Connected, but the band display has stopped arriving: say so rather than
+// leave a frozen picture.
+setInterval(() => {
+  const stalled = radio.rigConnected && lastSweepAt > 0 && Date.now() - lastSweepAt > 4000;
+  document.body.classList.toggle('no-sweeps', stalled);
+  $('scopeEmpty').textContent = stalled
+    ? 'The radio has stopped sending its band display. It carries on when the radio does.'
+    : 'The band display appears here once the radio is connected.';
+}, 2000);
+// Only the console's own direct connection sends both receivers; from wfweb
+// that header byte means something else.
+radio.addEventListener('audio', (e) => speaker.play(e.detail, !!(radio.info && radio.info.direct)));
 radio.addEventListener('notice', (e) => toast(e.detail.text));
 
 renderLink();
@@ -1085,4 +1267,4 @@ renderTalk();
 radio.connect();
 
 // Handy when poking at the page from the browser's developer console.
-window.radioConsole = { radio, scope, speaker, mic };
+window.radioConsole = { radio, scope, speaker, mic, repeaters, scan, second, satellites, logbook, tips, tabs };

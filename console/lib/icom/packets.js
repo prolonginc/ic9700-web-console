@@ -48,6 +48,7 @@ const TOKEN = { REMOVE: 0x01, CONFIRM: 0x02, RENEW: 0x05 };
 
 // Audio formats the radio offers. 0x04 is 16-bit mono PCM.
 const CODEC_PCM16_MONO = 0x04;
+const CODEC_PCM16_STEREO = 0x10; // on a two-receiver radio: main on the left, second receiver on the right
 
 function header(length, type, myId, remoteId) {
   const b = Buffer.alloc(length);
@@ -128,8 +129,8 @@ function connInfoRequest(s, authId, o) {
   passcode(o.user).copy(b, 0x60);
   b[0x70] = 0x01; // receive audio wanted
   b[0x71] = 0x01; // transmit audio wanted
-  b[0x72] = CODEC_PCM16_MONO;
-  b[0x73] = CODEC_PCM16_MONO;
+  b[0x72] = o.stereo ? CODEC_PCM16_STEREO : CODEC_PCM16_MONO; // what the radio sends us
+  b[0x73] = CODEC_PCM16_MONO; // what we send it
   b.writeUInt32BE(o.sampleRate, 0x74);
   b.writeUInt32BE(o.sampleRate, 0x78);
   b.writeUInt32BE(o.civPort, 0x7c);

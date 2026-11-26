@@ -65,6 +65,7 @@ export class Scope {
     this.wheelTune = 0;
     this.wheelZoom = 0;
     this.axisKey = '';
+    this.hoverX = null; // where the pointer rests, in window coordinates
 
     new ResizeObserver(() => this.resize()).observe(els.area);
     this.resize();
@@ -72,6 +73,7 @@ export class Scope {
     els.area.addEventListener('pointermove', (e) => this.onHover(e));
     els.area.addEventListener('pointerleave', () => {
       els.hover.hidden = true;
+      this.hoverX = null;
     });
     els.area.addEventListener('click', (e) => {
       if (e.target.closest('button, .scope-zoom, .scope-tag')) return;
@@ -173,6 +175,8 @@ export class Scope {
 
     this.updateAxis();
     this.updateMarker();
+    // The picture may have slid under a pointer that is not moving.
+    if (this.hoverX !== null && (start !== prevStart || span !== prevSpan)) this.placeHover(this.hoverX);
     this.dirty = true;
   }
 
@@ -227,12 +231,18 @@ export class Scope {
   }
 
   onHover(e) {
-    const { hover, hoverLabel, area } = this.els;
-    if (e.target.closest('button, .scope-zoom, .scope-tag')) {
-      hover.hidden = true;
+    if (e.pointerType === 'touch' || e.target.closest('button, .scope-zoom, .scope-tag')) {
+      this.els.hover.hidden = true;
+      this.hoverX = null;
       return;
     }
-    const f = this.freqAt(e.clientX);
+    this.hoverX = e.clientX;
+    this.placeHover(e.clientX);
+  }
+
+  placeHover(clientX) {
+    const { hover, hoverLabel, area } = this.els;
+    const f = this.freqAt(clientX);
     if (!f) {
       hover.hidden = true;
       return;

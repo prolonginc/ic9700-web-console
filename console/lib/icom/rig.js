@@ -6,6 +6,20 @@
 // Commands go out one at a time, each waiting briefly for its answer, with
 // anything the user asked for jumping ahead of routine status reads.
 //
+// Two receivers. The radio has a main band and a second ("sub") band, and
+// most commands act on whichever of the two is selected on its front panel.
+// There is no way to address the other one directly, so:
+//
+//   - `selected` is tracked by asking the radio often, and every answer is
+//     filed under the band that was selected when it arrived. Main-band
+//     settings keep their plain names (frequency, mode, squelch...); the
+//     second receiver's are prefixed (subFrequency, subMode, subSquelch...).
+//   - To change something on the band that is not selected, the commands
+//     "select it, change it, select the home band again" are queued together
+//     so nothing else can slip in between.
+//   - The home band is main, except in satellite mode, where main is only the
+//     transmitter and the second receiver is the one being listened to.
+//
 // Events: 'change' (the settings that changed), 'scope' (one spectrum sweep)
 
 const { EventEmitter } = require('events');
@@ -16,20 +30,23 @@ const CONTROLLER_ADDRESS = 0xe0;
 const REPLY_TIMEOUT_MS = 300;
 const METER_INTERVAL_MS = 100;
 const STATUS_INTERVAL_MS = 220;
+const PROBE_SETTLE_MS = 170; // time for the squelch to react after tuning
 
 // Settings read in rotation to notice changes made on the radio itself.
-// Frequency and mode appear twice so they come round more often.
+// Frequency and mode appear more than once so they come round more often.
 const STATUS_READS = [
   [0x03], // frequency
   [0x04], // mode
   [0x0f], // repeater shift
   [0x0c], // shift distance
+  [0x16, 0x59], // second receiver on?
   [0x03],
   [0x04],
   [0x14, 0x03], // squelch
   [0x14, 0x0a], // transmit power
   [0x16, 0x02], // preamp
   [0x16, 0x40], // noise reduction
+  [0x16, 0x5a], // satellite mode?
   [0x03],
   [0x04],
   [0x16, 0x5d], // access tone type
@@ -39,8 +56,34 @@ const STATUS_READS = [
   [0x27, 0x15, 0x00], // scope span
 ];
 
+// The second receiver's settings worth knowing, read while it is selected.
+const SUB_READS = [[0x03], [0x04], [0x14, 0x03]];
+
+const SELECT = { main: [0x07, 0xd0], sub: [0x07, 0xd1] };
+
+// Settings that exist once per band. Everything else belongs to the radio as
+// a whole (or to its transmitter, which is always on the main band).
+const PER_BAND = new Set([
+  'frequency',
+  'mode',
+  'duplex',
+  'duplexOffset',
+  'squelch',
+  'preamp',
+  'nr',
+  'toneMode',
+  'toneFreq',
+  'tsqlFreq',
+  'sMeter',
+  'squelchOpen',
+]);
+
 const DUPLEX_BYTE = { OFF: 0x10, 'DUP-': 0x11, 'DUP+': 0x12 };
-const DUPLEX_NAME = { 0x10: 'OFF', 0x11: 'DUP-', 0x12: 'DUP+' };
+// Reading the shift gives 0x00 for "none", though setting it takes 0x10.
+const DUPLEX_NAME = { 0x00: 'OFF', 0x10: 'OFF', 0x11: 'DUP-', 0x12: 'DUP+' };
+
+const subKey = (name) => `sub${name[0].toUpperCase()}${name.slice(1)}`;
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class Rig extends EventEmitter {
   constructor(session, profile) {
@@ -60,6 +103,10 @@ class Rig extends EventEmitter {
     this.modInput = null; // the radio's own transmit-audio source setting
     this.modInputToRestore = null;
     this.scopeParts = null;
+    this.selected = 'main'; // the band the radio is acting on right now
+    this.willSelect = 'main'; // ...and the one it will be on once the queue has run
+    this.snapshot = null; // per-band settings as of the last selection check
+    this.satelliteByUs = false; // satellite mode was switched on from here
     this.stopped = false;
 
     this.onCiv = (bytes) => {
@@ -74,9 +121,14 @@ class Rig extends EventEmitter {
     // Ask for the spectrum scope and for its sweeps to be sent to us.
     this.set([0x27, 0x10, 0x01]);
     this.set([0x27, 0x11, 0x01]);
+    this.get([0x07, 0xd2]); // which band is selected
     this.get([0x1a, 0x05, 0x01, 0x15]); // transmit-audio source
     this.get([0x1c, 0x00]); // transmitting?
     for (const read of STATUS_READS) this.get(read, false);
+    // Once the first answers are in, look at the second receiver if it is on.
+    Promise.all([this.get([0x16, 0x59]), this.get([0x16, 0x5a])]).then(() => {
+      if (this.state.dualWatch || this.state.satMode) this.refreshOther();
+    });
 
     this.timers.push(
       setInterval(() => {
@@ -89,6 +141,13 @@ class Rig extends EventEmitter {
           this.get([0x15, 0x02], false); // S-meter
         }
         if (this.meterTick % 2 === 0) this.get([0x1c, 0x00], false);
+        if (this.meterTick % 4 === 1) this.get([0x07, 0xd2], false); // which band is selected
+        // With the second receiver selected on the radio's own panel, the
+        // rotation below is reading that one. These two always answer for main.
+        if (this.meterTick % 8 === 0 && this.selected === 'sub' && !this.state.satMode) {
+          this.get([0x25, 0x00], false);
+          this.get([0x26, 0x00], false);
+        }
       }, METER_INTERVAL_MS),
       setInterval(() => {
         if (this.routine.length > 5) return;
@@ -165,8 +224,85 @@ class Rig extends EventEmitter {
     if (!item) return;
     clearTimeout(item.timer);
     this.pending = null;
+    // Our own "select this band" took effect: file what follows accordingly.
+    if (result === true && item.payload.length === 2 && item.payload[0] === 0x07) {
+      if (item.payload[1] === 0xd0) this.noteSelected('main', true);
+      else if (item.payload[1] === 0xd1) this.noteSelected('sub', true);
+    }
     item.resolve(result);
     this.pump();
+  }
+
+  // ------------------------------------------------------------- Bands
+
+  home() {
+    return this.state.satMode ? 'sub' : 'main';
+  }
+
+  // The name a per-band setting is stored under, for the band selected now.
+  keyFor(name, band = this.selected) {
+    return band === 'sub' && PER_BAND.has(name) ? subKey(name) : name;
+  }
+
+  // Stores readings that belong to the selected band.
+  updateBand(changes) {
+    const mapped = {};
+    for (const [name, value] of Object.entries(changes)) mapped[this.keyFor(name)] = value;
+    this.update(mapped);
+  }
+
+  bandSnapshot(band) {
+    const values = {};
+    for (const name of PER_BAND) {
+      const key = this.keyFor(name, band);
+      if (key in this.state) values[key] = this.state[key];
+    }
+    return { band, values };
+  }
+
+  // byUs: we asked for it. Otherwise someone pressed MAIN or SUB on the radio,
+  // and whatever arrived since the last check may have been filed under the
+  // wrong band, so that band goes back to how it was at that check.
+  noteSelected(band, byUs) {
+    if (band !== this.selected) {
+      if (!byUs && this.snapshot && this.snapshot.band === this.selected) this.update(this.snapshot.values);
+      this.selected = band;
+      this.update({ selected: band });
+    }
+    if (!byUs && this.urgent.length === 0) this.willSelect = band;
+    this.snapshot = this.bandSnapshot(band);
+  }
+
+  // Queues commands for one band, selecting it first and returning to the
+  // home band after if need be. Resolves with the result of the last command.
+  onBand(band, payloads, { key, kind = 'set' } = {}) {
+    if (key) {
+      const waiting = this.urgent.find((item) => item.key === `${band}:${key}`);
+      if (waiting) {
+        waiting.payload = Buffer.from(payloads[payloads.length - 1]);
+        return waiting.promise;
+      }
+    }
+    const home = this.home();
+    if (this.willSelect !== band) this.set(SELECT[band]);
+    let last = Promise.resolve(null);
+    payloads.forEach((payload, i) => {
+      const lastOne = i === payloads.length - 1;
+      last = this.enqueue({ payload: Buffer.from(payload), kind, key: lastOne && key ? `${band}:${key}` : undefined }, true);
+    });
+    this.willSelect = band;
+    if (band !== home) {
+      this.set(SELECT[home]);
+      this.willSelect = home;
+    }
+    return last;
+  }
+
+  // Reads the band that is not the home band, which nothing else looks at.
+  refreshOther() {
+    const other = this.home() === 'main' ? 'sub' : 'main';
+    const reads = other === 'sub' ? SUB_READS : [[0x03], [0x04], [0x16, 0x5d], [0x1b, 0x00]];
+    return this.onBand(other, reads, { kind: 'get' });
   }
 
   // ----------------------------------------------------------- Incoming
@@ -209,42 +345,51 @@ class Rig extends EventEmitter {
     switch (p[0]) {
       case 0x00: // the radio announcing a new frequency (dial turned)
       case 0x03:
-        if (p.length >= 6) this.update({ frequency: civ.fromBcdLE(p.subarray(1, 6)) });
+        if (p.length >= 6) this.updateBand({ frequency: civ.fromBcdLE(p.subarray(1, 6)) });
         break;
       case 0x01: // the radio announcing a new mode
       case 0x04: {
         const name = p.length >= 2 ? this.modeName(p[1]) : null;
-        if (name) this.update({ mode: name });
+        if (name) this.updateBand({ mode: name });
         break;
       }
+      case 0x07:
+        if (p[1] === 0xd2 && p.length >= 3) this.noteSelected(p[2] === 0x01 ? 'sub' : 'main', false);
+        break;
       case 0x0f:
-        if (p.length >= 2 && DUPLEX_NAME[p[1]]) this.update({ duplex: DUPLEX_NAME[p[1]] });
+        if (p.length >= 2 && DUPLEX_NAME[p[1]]) this.updateBand({ duplex: DUPLEX_NAME[p[1]] });
         break;
       case 0x0c:
-        if (p.length >= 4) this.update({ duplexOffset: civ.fromBcdLE(p.subarray(1, 4)) * 100 });
+        if (p.length >= 4) this.updateBand({ duplexOffset: civ.fromBcdLE(p.subarray(1, 4)) * 100 });
         break;
       case 0x14: {
         const v = level(2);
         if (v === null) break;
-        if (p[1] === 0x03) this.update({ squelch: v });
+        if (p[1] === 0x03) this.updateBand({ squelch: v });
         else if (p[1] === 0x0a) this.update({ rfPower: v });
         break;
       }
       case 0x15: {
+        if (p[1] === 0x01 && p.length >= 3) {
+          this.updateBand({ squelchOpen: p[2] === 0x01 });
+          break;
+        }
         const v = level(2);
         if (v === null) break;
-        if (p[1] === 0x02) this.update({ sMeter: Math.round(calibrate(this.profile.sMeter, v) * 10) / 10 });
+        if (p[1] === 0x02) this.updateBand({ sMeter: Math.round(calibrate(this.profile.sMeter, v) * 10) / 10 });
         else if (p[1] === 0x11) this.update({ powerMeter: Math.round(calibrate(this.profile.powerMeter, v)) });
         else if (p[1] === 0x12) this.update({ swrMeter: Math.round(calibrate(this.profile.swrMeter, v) * 10) / 10 });
         break;
       }
       case 0x16:
         if (p.length < 3) break;
-        if (p[1] === 0x02) this.update({ preamp: p[2] });
-        else if (p[1] === 0x40) this.update({ nr: p[2] === 0x01 });
+        if (p[1] === 0x02) this.updateBand({ preamp: p[2] });
+        else if (p[1] === 0x40) this.updateBand({ nr: p[2] === 0x01 });
+        else if (p[1] === 0x59) this.update({ dualWatch: p[2] === 0x01 });
+        else if (p[1] === 0x5a) this.update({ satMode: p[2] === 0x01 });
         else if (p[1] === 0x5d) {
           const found = this.profile.toneModes.find(([b]) => b === p[2]);
-          this.update({ toneMode: found ? found[1] : 'OFF' });
+          this.updateBand({ toneMode: found ? found[1] : 'OFF' });
         }
         break;
       case 0x1a:
@@ -254,13 +399,22 @@ class Rig extends EventEmitter {
         // Two BCD bytes of tenths of a hertz, after one padding byte.
         if (p.length >= 4) {
           const tone = civ.fromBcdBE(data(p.length - 2));
-          if (p[1] === 0x00) this.update({ toneFreq: tone });
-          else if (p[1] === 0x01) this.update({ tsqlFreq: tone });
+          if (p[1] === 0x00) this.updateBand({ toneFreq: tone });
+          else if (p[1] === 0x01) this.updateBand({ tsqlFreq: tone });
         }
         break;
       case 0x1c:
         if (p[1] === 0x00 && p.length >= 3) this.update({ transmitting: p[2] === 0x01 });
         break;
+      case 0x25:
+        // The main band's frequency, whichever band is selected.
+        if (p[1] === 0x00 && p.length >= 7) this.update({ frequency: civ.fromBcdLE(p.subarray(2, 7)) });
+        break;
+      case 0x26: {
+        const name = p[1] === 0x00 && p.length >= 3 ? this.modeName(p[2]) : null;
+        if (name) this.update({ mode: name });
+        break;
+      }
       case 0x27:
         if (p[1] === 0x14 && p.length >= 4) this.update({ scopeMode: p[3] });
         else if (p[1] === 0x15 && p.length >= 8) {
@@ -306,36 +460,58 @@ class Rig extends EventEmitter {
   }
 
   // ------------------------------------------------------------ Commands
+  //
+  // `band` is 'main' unless said otherwise. A change the radio accepts is
+  // recorded straight away under that band's name for it.
 
-  async setFrequency(hz) {
-    if (await this.set([0x05, ...civ.toBcdLE(hz, 5)], 'frequency')) this.update({ frequency: hz });
+  record(band, changes) {
+    const mapped = {};
+    for (const [name, value] of Object.entries(changes)) mapped[this.keyFor(name, band)] = value;
+    this.update(mapped);
   }
 
-  async setMode(name) {
+  bandOf(hz) {
+    return this.profile.bands.findIndex((b) => hz >= b.start && hz <= b.end);
+  }
+
+  async setFrequency(hz, band = 'main') {
+    // With both receivers on, a band can only be on one of them, and the
+    // radio refuses to tune the main one into the band the second is using.
+    // Trading the two over first is what the radio's own band keys do.
+    if (band === 'main' && this.state.dualWatch && !this.state.satMode) {
+      const want = this.bandOf(hz);
+      if (want >= 0 && want === this.bandOf(this.state.subFrequency) && want !== this.bandOf(this.state.frequency)) {
+        await this.swapBands();
+      }
+    }
+    if (await this.onBand(band, [[0x05, ...civ.toBcdLE(hz, 5)]], { key: 'frequency' })) this.record(band, { frequency: hz });
+  }
+
+  async setMode(name, band = 'main') {
     const found = this.profile.modes.find(([n]) => n === name);
     if (!found) return;
-    if (await this.set([0x06, found[1]])) this.update({ mode: name });
+    if (await this.onBand(band, [[0x06, found[1]]])) this.record(band, { mode: name });
   }
 
   async setDuplex(name) {
     if (!(name in DUPLEX_BYTE)) return;
-    if (await this.set([0x0f, DUPLEX_BYTE[name]])) this.update({ duplex: name });
+    if (await this.onBand('main', [[0x0f, DUPLEX_BYTE[name]]])) this.record('main', { duplex: name });
   }
 
   async setDuplexOffset(hz) {
-    if (await this.set([0x0d, ...civ.toBcdLE(hz / 100, 3)])) this.update({ duplexOffset: hz });
+    if (await this.onBand('main', [[0x0d, ...civ.toBcdLE(hz / 100, 3)]])) this.record('main', { duplexOffset: hz });
   }
 
   async setToneMode(name) {
     const found = this.profile.toneModes.find(([, n]) => n === name);
     if (!found) return;
-    if (await this.set([0x16, 0x5d, found[0]])) this.update({ toneMode: name });
+    if (await this.onBand('main', [[0x16, 0x5d, found[0]]])) this.record('main', { toneMode: name });
   }
 
   async setTone(which, tenths) {
     const sub = which === 'tsql' ? 0x01 : 0x00;
-    if (await this.set([0x1b, sub, 0x00, ...civ.toBcdBE(tenths, 2)])) {
-      this.update(which === 'tsql' ? { tsqlFreq: tenths } : { toneFreq: tenths });
+    if (await this.onBand('main', [[0x1b, sub, 0x00, ...civ.toBcdBE(tenths, 2)]])) {
+      this.record('main', which === 'tsql' ? { tsqlFreq: tenths } : { toneFreq: tenths });
     }
   }
 
@@ -349,26 +525,110 @@ class Rig extends EventEmitter {
     if (await this.set([0x27, 0x14, 0x00, mode & 0x03])) this.update({ scopeMode: mode & 0x03 });
   }
 
-  async setLevel(sub, key, value) {
+  async setSquelch(value, band = 'main') {
     const v = Math.max(0, Math.min(255, Math.round(value)));
-    if (await this.set([0x14, sub, ...civ.toBcdBE(v, 2)], key)) this.update({ [key]: v });
+    if (await this.onBand(band, [[0x14, 0x03, ...civ.toBcdBE(v, 2)]], { key: 'squelch' })) this.record(band, { squelch: v });
   }
 
-  setSquelch(value) {
-    return this.setLevel(0x03, 'squelch', value);
-  }
-
-  setRfPower(value) {
-    return this.setLevel(0x0a, 'rfPower', value);
+  async setRfPower(value) {
+    const v = Math.max(0, Math.min(255, Math.round(value)));
+    if (await this.set([0x14, 0x0a, ...civ.toBcdBE(v, 2)], 'rfPower')) this.update({ rfPower: v });
   }
 
   async setPreamp(value) {
     const v = value ? 1 : 0;
-    if (await this.set([0x16, 0x02, v])) this.update({ preamp: v });
+    if (await this.onBand('main', [[0x16, 0x02, v]])) this.record('main', { preamp: v });
   }
 
   async setNoiseReduction(on) {
-    if (await this.set([0x16, 0x40, on ? 1 : 0])) this.update({ nr: !!on });
+    if (await this.onBand('main', [[0x16, 0x40, on ? 1 : 0]])) this.record('main', { nr: !!on });
+  }
+
+  // Reports whether anyone is on the main band's frequency: the answer to
+  // "is the squelch open?". With `hz`, tunes there first and gives the
+  // receiver a moment to settle. This is what scanning is made of.
+  async probe(hz, modeName) {
+    if (hz) {
+      if (modeName && modeName !== this.state.mode) await this.setMode(modeName);
+      await this.setFrequency(hz);
+      await delay(PROBE_SETTLE_MS);
+    }
+    const [squelch] = await Promise.all([
+      this.onBand('main', [[0x15, 0x01]], { kind: 'get' }),
+      this.onBand('main', [[0x15, 0x02]], { kind: 'get' }),
+    ]);
+    const busy = squelch ? squelch[2] === 0x01 : null;
+    return { frequency: this.state.frequency, busy, sMeter: this.state.sMeter };
+  }
+
+  // ---------------------------------------------------- Second receiver
+
+  async setDualWatch(on) {
+    if (!(await this.set([0x16, 0x59, on ? 1 : 0]))) return;
+    this.update({ dualWatch: !!on });
+    if (on) this.refreshOther();
+  }
+
+  // Main and second receiver trade places.
+  async swapBands() {
+    if (!(await this.set([0x07, 0xb0]))) return;
+    // Show the trade at once, then read both bands to fill in the rest.
+    const before = { ...this.state };
+    const traded = {};
+    for (const name of ['frequency', 'mode']) { // squelch stays with each receiver
+      if (before[subKey(name)] !== undefined) traded[name] = before[subKey(name)];
+      if (before[name] !== undefined) traded[subKey(name)] = before[name];
+    }
+    this.update(traded);
+    for (const read of STATUS_READS) this.get(read, false);
+    this.refreshOther();
+  }
+
+  // ----------------------------------------------------- Satellite mode
+  //
+  // In satellite mode the radio keeps a separate pair of frequencies: main is
+  // the transmitter (uplink) and the second receiver hears the satellite
+  // (downlink), both at once. Leaving the mode brings back what was there.
+
+  // tone: tenths of a hertz, or 0 for none.
+  async satelliteStart({ downlink, uplink, mode = 'FM', tone = 0 }) {
+    const modeByte = (this.profile.modes.find(([n]) => n === mode) || this.profile.modes.find(([n]) => n === 'FM'))[1];
+    if (!this.state.satMode) {
+      if (!(await this.set([0x16, 0x5a, 0x01]))) return false;
+      this.satelliteByUs = true;
+      this.update({ satMode: true });
+    }
+    this.onBand('main', [
+      [0x05, ...civ.toBcdLE(uplink, 5)],
+      [0x06, modeByte],
+      [0x0f, DUPLEX_BYTE.OFF],
+      ...(tone ? [[0x1b, 0x00, 0x00, ...civ.toBcdBE(tone, 2)]] : []),
+      [0x16, 0x5d, tone ? 0x01 : 0x00],
+    ]);
+    const ok = await this.onBand('sub', [
+      [0x06, modeByte],
+      [0x05, ...civ.toBcdLE(downlink, 5)],
+    ]);
+    this.record('main', { frequency: uplink, mode, duplex: 'OFF', toneMode: tone ? 'TONE' : 'OFF', ...(tone ? { toneFreq: tone } : {}) });
+    this.record('sub', { frequency: downlink, mode });
+    return !!ok;
+  }
+
+  // Follows the satellite as its motion shifts both frequencies.
+  satelliteTune({ downlink, uplink }) {
+    if (!this.state.satMode) return;
+    if (downlink) this.setFrequency(downlink, 'sub');
+    if (uplink) this.setFrequency(uplink, 'main');
+  }
+
+  async satelliteStop() {
+    if (!(await this.set([0x16, 0x5a, 0x00]))) return;
+    this.satelliteByUs = false;
+    this.update({ satMode: false });
+    // The ordinary frequencies are back, and the radio chooses the selection.
+    this.get([0x07, 0xd2]);
+    for (const read of STATUS_READS) this.get(read, false);
+    if (this.state.dualWatch) this.refreshOther();
   }
 
   // Keys or unkeys the transmitter.
