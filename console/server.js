@@ -5,6 +5,7 @@
 // picked with BACKEND (in the environment or in radio.conf):
 //
 //   direct   this program logs in to the radio itself. Nothing else to install.
+//            This is the default.
 //   wfweb    wfweb talks to the radio and this program passes messages through.
 //
 // No dependencies: Node's standard library only.
@@ -38,7 +39,7 @@ function loadConfig() {
   return {
     port: Number(get('PORT', 9700)),
     bind: get('BIND', '127.0.0.1'),
-    backend: String(get('BACKEND', 'wfweb')).toLowerCase(),
+    backend: String(get('BACKEND', 'direct')).toLowerCase(),
     radio: { host: get('RADIO_IP', ''), user: get('RADIO_USER', ''), pass: get('RADIO_PASS', '') },
     wfweb: { host: get('WFWEB_HOST', '127.0.0.1'), port: Number(get('WFWEB_PORT', 8080)) },
   };

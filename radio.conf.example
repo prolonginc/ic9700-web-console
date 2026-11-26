@@ -18,9 +18,9 @@ RADIO_USER=your-user-id
 RADIO_PASS='your-password'
 
 # What talks to the radio on the page's behalf:
+#   direct   the console logs in to the radio itself; nothing else to install
 #   wfweb    go through wfweb, which you download separately (see the README)
-#   direct   the console logs in to the radio itself; newer and less used
-BACKEND=wfweb
+BACKEND=direct
 
 # --- Optional. Remove the leading "# " from a setting to change it. ---
 
@@ -31,6 +31,6 @@ BACKEND=wfweb
 # this computer. Read "Keeping it safe" in the README before changing this.
 # BIND=127.0.0.1
 
-# The full path of the folder that holds the wfweb program, if it is not in
-# wfweb/wfweb-macos-arm64 next to this file.
+# Only for BACKEND=wfweb: the full path of the folder that holds the wfweb
+# program, if it is not in wfweb/wfweb-macos-arm64 next to this file.
 # WFWEB_DIR=/full/path/to/wfweb-folder

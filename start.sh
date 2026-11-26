@@ -3,8 +3,8 @@
 # Stop it with Ctrl-C.
 #
 # Something has to talk to the radio on the page's behalf. BACKEND chooses:
-#   wfweb    start wfweb and go through it (the default)
-#   direct   the console logs in to the radio itself; wfweb is not needed
+#   direct   the console logs in to the radio itself (the default)
+#   wfweb    start wfweb and go through it
 #
 # The radio's address and login, and BACKEND, live in radio.conf next to this
 # script. Set NO_OPEN=1 to skip opening the browser.
@@ -27,7 +27,7 @@ fi
 # A BACKEND given on the command line wins over the one in radio.conf.
 BACKEND_ASKED="${BACKEND:-}"
 . "$CONF"
-BACKEND="${BACKEND_ASKED:-${BACKEND:-wfweb}}"
+BACKEND="${BACKEND_ASKED:-${BACKEND:-direct}}"
 export BACKEND
 WFWEB_DIR="${WFWEB_DIR:-$HERE/wfweb/wfweb-macos-arm64}"
 PORT="${PORT:-9700}"

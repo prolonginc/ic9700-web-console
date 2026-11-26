@@ -67,12 +67,12 @@ This is an early project. Read this table before you rely on it.
 
 | Part | State |
 | --- | --- |
-| Frequency display, band map, spectrum, waterfall, zoom | Used with a real IC-9700, through wfweb |
-| Tuning by click, scroll, arrows and typing; favorites; tips | Used with a real IC-9700, through wfweb |
+| Frequency display, band map, spectrum, waterfall, zoom | Used with a real IC-9700, mostly through wfweb |
+| Tuning by click, scroll, arrows and typing; favorites; tips | Used with a real IC-9700, mostly through wfweb |
 | Receive audio | Reaches the browser from a real IC-9700; sound quality not yet judged |
 | Band, mode, repeater, squelch, power, preamp and noise reduction controls | Built; not yet all tried on a real radio |
 | Talking from the browser | Built and dry-run with the commands captured; not yet tried on the air |
-| Direct connection, without wfweb | New. Logs in to a real IC-9700 and brings back its settings, meters, spectrum and receive audio. It has had much less use than the wfweb route |
+| Direct connection, the default | New. Logs in to a real IC-9700 and brings back its settings, meters, spectrum and receive audio. It has had much less use than the wfweb route |
 
 Developed on macOS 15 (Apple Silicon) with Chrome and Node.js 25. Nothing else
 has been tried yet. If you run it somewhere else, an issue saying how it went
@@ -125,38 +125,40 @@ out of anything you publish.
 Something has to speak the radio's network protocol on the page's behalf. The
 `BACKEND` line in `radio.conf` chooses what.
 
-### `BACKEND=wfweb` (the default)
+### `BACKEND=direct` (the default)
+
+The console logs in to the radio itself. There is nothing else to install.
+
+This route is new. It has logged in to a real IC-9700 and shown its settings,
+meters, spectrum and receive audio, but it has had far less use than the wfweb
+route, and talking through it has not been tried on the air. Expect rough edges
+and please report them. If it gives you trouble, the wfweb route is the
+fallback.
+
+### `BACKEND=wfweb`
 
 The console goes through [wfweb](https://github.com/adecarolis/wfweb), which
 does the talking to the radio. This is the route that has had the most use with
-a real radio.
+a real radio. To use it:
 
-1. Download wfweb for your computer from its
+1. Set `BACKEND=wfweb` in `radio.conf`.
+2. Download wfweb for your computer from its
    [releases page](https://github.com/adecarolis/wfweb/releases).
-2. Unzip it inside a folder named `wfweb` in this project, so that the program
+3. Unzip it inside a folder named `wfweb` in this project, so that the program
    ends up at `wfweb/wfweb-macos-arm64/wfweb`. If yours unpacks under another
    name, set `WFWEB_DIR` in `radio.conf` to the full path of its folder.
-3. On macOS, install the libraries wfweb needs:
+4. On macOS, install the libraries wfweb needs:
    `brew install portaudio openssl@4 codec2 qt@5 opus`
 
 `./start.sh` starts wfweb for you and stops it when you quit. wfweb also serves
 its own, much fuller page at <https://localhost:8080>, which other devices on
 your network can open too. The console links to it as "Full control panel".
 
-### `BACKEND=direct` (new)
-
-The console logs in to the radio itself. There is nothing else to install.
-
-This route is newer. It has logged in to a real IC-9700 and shown its settings,
-meters, spectrum and receive audio, but it has had far less use than the wfweb
-route, and talking through it has not been tried on the air. Expect rough edges
-and please report them.
-
 ### One connection at a time
 
-The radio accepts a single network connection. Quit wfview, wfweb, RS-BA1 or
-anything else that is connected to it before starting the console in direct
-mode.
+The radio accepts a single network connection. Quit wfview, RS-BA1 or anything
+else that is connected to it before starting the console. In direct mode that
+includes wfweb.
 
 ## Using it
 
@@ -222,12 +224,12 @@ is ON and the radio has been switched off and on since, and that the address in
 `radio.conf` is right (`ping` it). Make sure nothing else is connected to the
 radio.
 
-**The login is refused.** Correct the user ID or password in `radio.conf` and
-start again. wfweb does not retry after a wrong password, so it has to be
-restarted.
+**The login is refused.** Correct the user ID or password in `radio.conf`, then
+stop the console and start it again. Neither route retries after a wrong
+password.
 
-**wfweb stops with `dyld: Library not loaded`.** One of its libraries is
-missing. Run the `brew install` line above.
+**In wfweb mode, wfweb stops with `dyld: Library not loaded`.** One of its
+libraries is missing. Run the `brew install` line above.
 
 **No sound.** Click "Start listening" first. Then check the volume, and lower
 the squelch in case it is set high enough to silence everything.
