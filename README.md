@@ -72,7 +72,7 @@ This is an early project. Read this table before you rely on it.
 | Receive audio | Reaches the browser from a real IC-9700; sound quality not yet judged |
 | Band, mode, repeater, squelch, power, preamp and noise reduction controls | Built; not yet all tried on a real radio |
 | Talking from the browser | Built and dry-run with the commands captured; not yet tried on the air |
-| Direct connection, without wfweb | Experimental. Passes tests against a simulated radio only |
+| Direct connection, without wfweb | New. Logs in to a real IC-9700 and brings back its settings, meters, spectrum and receive audio. It has had much less use than the wfweb route |
 
 Developed on macOS 15 (Apple Silicon) with Chrome and Node.js 25. Nothing else
 has been tried yet. If you run it somewhere else, an issue saying how it went
@@ -128,8 +128,8 @@ Something has to speak the radio's network protocol on the page's behalf. The
 ### `BACKEND=wfweb` (the default)
 
 The console goes through [wfweb](https://github.com/adecarolis/wfweb), which
-does the talking to the radio. This is the route that has been used with a real
-radio.
+does the talking to the radio. This is the route that has had the most use with
+a real radio.
 
 1. Download wfweb for your computer from its
    [releases page](https://github.com/adecarolis/wfweb/releases).
@@ -143,12 +143,14 @@ radio.
 its own, much fuller page at <https://localhost:8080>, which other devices on
 your network can open too. The console links to it as "Full control panel".
 
-### `BACKEND=direct` (experimental)
+### `BACKEND=direct` (new)
 
 The console logs in to the radio itself. There is nothing else to install.
 
-This has passed its tests against a simulated radio only. It has not yet been
-run against a real IC-9700, so expect rough edges and please report them.
+This route is newer. It has logged in to a real IC-9700 and shown its settings,
+meters, spectrum and receive audio, but it has had far less use than the wfweb
+route, and talking through it has not been tried on the air. Expect rough edges
+and please report them.
 
 ### One connection at a time
 

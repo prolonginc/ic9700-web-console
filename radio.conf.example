@@ -19,7 +19,7 @@ RADIO_PASS='your-password'
 
 # What talks to the radio on the page's behalf:
 #   wfweb    go through wfweb, which you download separately (see the README)
-#   direct   the console logs in to the radio itself; experimental
+#   direct   the console logs in to the radio itself; newer and less used
 BACKEND=wfweb
 
 # --- Optional. Remove the leading "# " from a setting to change it. ---
